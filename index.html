@@ -166,17 +166,17 @@ const T_WEST = [
   ["MEM","Memphis Grizzlies"],["POR","Portland Trail Blazers"],["UTA","Utah Jazz"],["PHX","Phoenix Suns"],["NOP","New Orleans Pelicans"]
 ];
 
-/* Mappa lagkod → läsvänligt namn */
+/* Kod -> namn */
 const CODE2NAME = Object.fromEntries([...T_EAST, ...T_WEST]);
 
-/* Hjälpare för alfabetisk sortering */
+/* Alfabetisk sort */
 function sortPoolAlpha(pool){ pool.sort((a,b)=>CODE2NAME[a].localeCompare(CODE2NAME[b])); }
 function sortedCodesAlpha(list){ return list.slice().sort((a,b)=>a[1].localeCompare(b[1])).map(x=>x[0]); }
 
 /* UI-state */
 let activeTab = "East";
-let eastPool = sortedCodesAlpha(T_EAST); // alfabetisk initialt
-let westPool = sortedCodesAlpha(T_WEST); // alfabetisk initialt
+let eastPool = sortedCodesAlpha(T_EAST);
+let westPool = sortedCodesAlpha(T_WEST);
 let eastPick = [];
 let westPick = [];
 
@@ -201,7 +201,6 @@ const els = {
 function fmtCount(p){ return `${p.length}/15 valda`; }
 
 function renderLists(){
-  // Håll poolerna alfabetiska vid varje render
   sortPoolAlpha(eastPool);
   sortPoolAlpha(westPool);
 
@@ -245,8 +244,9 @@ function renderLists(){
   els.westCount.textContent = fmtCount(westPick);
 
   const locked = isLocked();
-  els.saveEast.disabled = locked || eastPick.length!==15 || !els.name.value.trim();
-  els.saveWest.disabled = locked || westPick.length!==15 || !els.name.value.trim();
+  // <- Viktigt: låt knapparna vara klickbara (endast lås/antal styr)
+  els.saveEast.disabled = locked || eastPick.length!==15;
+  els.saveWest.disabled = locked || westPick.length!==15;
 }
 
 function isLocked(){ return new Date() >= lockDate; }
@@ -269,8 +269,7 @@ els.tabs.forEach(t=>{
   });
 });
 
-/* Save/upsert till Supabase */
-/* Save/upsert till Supabase via RPC */
+/* Spara via RPC */
 async function savePicks(conf){
   const name = els.name.value.trim();
   if (!name){ alert("Skriv ditt namn först."); return; }
@@ -280,8 +279,9 @@ async function savePicks(conf){
   if (picks.length!==15){ alert("Du måste välja alla 15 lag."); return; }
 
   els.status.textContent = `Sparar ${conf}…`;
+  console.log('CLICK', conf, { name, picks });
 
-  const { error } = await sb.rpc('upsert_pick', {
+  const { data, error } = await sb.rpc('upsert_pick', {
     p_name: name,
     p_conference: conf,
     p_season: SEASON,
@@ -289,12 +289,16 @@ async function savePicks(conf){
   });
 
   if (error){
-    console.error(error);
+    console.error('RPC error', error);
     els.status.innerHTML = `<span class="neg">Fel vid sparning (${conf}): ${error.message}</span>`;
   } else {
+    console.log('RPC ok', data);
     els.status.textContent = `Sparat ${conf}.`;
   }
 }
+
+els.saveEast.addEventListener('click', ()=>{ console.log('CLICK EAST'); savePicks("East"); });
+els.saveWest.addEventListener('click', ()=>{ console.log('CLICK WEST'); savePicks("West"); });
 
 /* Ladda mina picks från Supabase (om de finns) */
 async function loadMyPicks(name){
@@ -320,10 +324,10 @@ function scoreForDiff(diff){
   if (diff===1) return 2;
   if (diff===2) return 1;
   if (diff===3) return 0;
-  return -(diff - 3); // 4 -> -1, 5 -> -2, etc
+  return -(diff - 3);
 }
 
-/* Hämta standings via Supabase Edge Function (server-side fetch) */
+/* Hämta standings via Edge Function */
 async function fetchStandings(){
   const url = `${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
   const res = await fetch(url, { headers: { "Authorization": `Bearer ${SUPABASE_ANON}` }});
@@ -334,7 +338,7 @@ async function fetchStandings(){
   return res.json();
 }
 
-/* Räkna leaderboard (bara efter låsdatum) */
+/* Räkna leaderboard (efter låsdatum) */
 async function renderLeaderboard(){
   const container = els.leaderWrap;
   container.innerHTML = "";
@@ -373,8 +377,6 @@ async function renderLeaderboard(){
   const rows = [];
   Object.entries(byName).forEach(([name,parts])=>{
     if (!Array.isArray(parts.East) || !Array.isArray(parts.West)) return;
-    let total=0, eastPts=0, westPts=0;
-
     function sumFor(picks, truth){
       let sum=0;
       picks.forEach((code, idx)=>{
@@ -386,15 +388,13 @@ async function renderLeaderboard(){
       });
       return sum;
     }
-    eastPts = sumFor(parts.East, eastOrder);
-    westPts = sumFor(parts.West, westOrder);
-    total = eastPts + westPts;
-    rows.push({ name, eastPts, westPts, total });
+    const eastPts = sumFor(parts.East, eastOrder);
+    const westPts = sumFor(parts.West, westOrder);
+    rows.push({ name, eastPts, westPts, total: eastPts + westPts });
   });
 
   rows.sort((a,b)=> b.total - a.total || a.name.localeCompare(b.name));
 
-  // 4) Render
   const fetchedTxt = standings.fetched_at ? tzFormatter.format(new Date(standings.fetched_at)) : "nu";
   const tbl = document.createElement('table');
   tbl.innerHTML = `
@@ -422,11 +422,9 @@ async function renderLeaderboard(){
 
 /* Init */
 (async function init(){
-  // Namn från localStorage
   els.name.value = localStorage.getItem('nba_name') || "";
   els.name.addEventListener('input', sync);
 
-  // Återställ val om det finns lokalt
   try{
     const ep = JSON.parse(localStorage.getItem('eastPick')||"[]");
     const wp = JSON.parse(localStorage.getItem('westPick')||"[]");
@@ -434,12 +432,10 @@ async function renderLeaderboard(){
     if (Array.isArray(wp) && wp.length>0){ westPick = wp; westPool = sortedCodesAlpha(T_WEST).filter(c=>!westPick.includes(c)); }
   }catch{}
 
-  // Om namn finns – hämta sparade picks (kan ligga på annan enhet)
   if (els.name.value.trim()){
     await loadMyPicks(els.name.value.trim());
   }
 
-  // Låsning
   const locked = isLocked();
   if (locked){
     els.status.textContent = "Låst – picks går ej att ändra.";
@@ -449,16 +445,71 @@ async function renderLeaderboard(){
   }
 
   renderLists();
-
-  // Leaderboard
   await renderLeaderboard();
 })();
 
 els.refreshBtn.addEventListener('click', renderLeaderboard);
 
-/* ===========================
-   SUPABASE – TABELL-SCHEMA (se separat SQL-block i chatten)
-=========================== */
+/* =======================================================================
+   API-KOD (SQL) – klistra in i Supabase SQL Editor och kör som ett script.
+   Skapar RPC-funktionen som används ovan samt rättigheter.
+
+   1) Kör detta i SQL Editor (Project → SQL → New query) och Execute:
+
+---------------------------------------------------------------------------
+create extension if not exists pgcrypto;
+
+create table if not exists public.picks (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  conference text not null check (conference in ('East','West')),
+  season text not null,
+  "order" text[] not null,
+  created_at timestamptz default now(),
+  unique (name, conference, season)
+);
+
+alter table public.picks enable row level security;
+
+-- (valfritt) öppna SELECT för alla
+drop policy if exists picks_select_all on public.picks;
+create policy picks_select_all on public.picks
+for select using (true);
+
+-- RPC som gör upsert. SECURITY DEFINER gör att RLS inte stoppar insättningen.
+create or replace function public.upsert_pick(
+  p_name       text,
+  p_conference text,
+  p_season     text,
+  p_order      text[]
+)
+returns public.picks
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.picks;
+begin
+  insert into public.picks(name, conference, season, "order")
+  values (p_name, p_conference, p_season, p_order)
+  on conflict (name, conference, season)
+  do update set "order" = excluded."order", created_at = now()
+  returning * into v_row;
+
+  return v_row;
+end
+$$;
+
+revoke all on function public.upsert_pick(text,text,text,text[]) from public;
+grant execute on function public.upsert_pick(text,text,text,text[]) to anon, authenticated;
+
+create index if not exists picks_season_idx on public.picks(season);
+---------------------------------------------------------------------------
+
+   2) Klart. Testa sen i din sida – klick på "Spara East/West" ska
+      skapa en POST mot /rest/v1/rpc/upsert_pick och ge 200 i Network.
+======================================================================= */
 </script>
 </body>
 </html>
