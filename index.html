@@ -137,10 +137,10 @@
 <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 /* ========= KONFIGURATION ========= */
-const SUPABASE_URL = "https://wqrpfhidctlgqnuxqppp.supabase.co";
+const SUPABASE_URL  = "https://wqrpfhidctlgqnuxqppp.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxcnBmaGlkY3RsZ3FudXhxcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDk5NTgsImV4cCI6MjA3NjcyNTk1OH0.rQiPQSI6YrIGR2GblEjpUi42jNLU0KVAP01vHOwyLgI";
 const LOCK_DATE_ISO = "2025-10-24T18:00:00+02:00";
-const SEASON = "2025";
+const SEASON        = "2025";
 /* ========= SLUT KONFIG ========= */
 
 const sb = supabase.createClient(
@@ -169,14 +169,14 @@ const T_WEST = [
 /* Kod -> namn */
 const CODE2NAME = Object.fromEntries([...T_EAST, ...T_WEST]);
 
-/* Alfabetisk sort */
+/* Alfabetiskt hjälp */
 function sortPoolAlpha(pool){ pool.sort((a,b)=>CODE2NAME[a].localeCompare(CODE2NAME[b])); }
 function sortedCodesAlpha(list){ return list.slice().sort((a,b)=>a[1].localeCompare(b[1])).map(x=>x[0]); }
 
 /* UI-state */
 let activeTab = "East";
-let eastPool = sortedCodesAlpha(T_EAST);
-let westPool = sortedCodesAlpha(T_WEST);
+let eastPool = sortedCodesAlpha(T_EAST); // alfabetisk initialt
+let westPool = sortedCodesAlpha(T_WEST); // alfabetisk initialt
 let eastPick = [];
 let westPick = [];
 
@@ -200,11 +200,13 @@ const els = {
 
 function fmtCount(p){ return `${p.length}/15 valda`; }
 
+/* ======= RENDER ======= */
 function renderLists(){
+  // Håll poolerna alfabetiska vid varje render
   sortPoolAlpha(eastPool);
   sortPoolAlpha(westPool);
 
-  // Pool
+  // Pool-listor
   els.eastPool.innerHTML = "";
   eastPool.forEach(code=>{
     const div = document.createElement('div');
@@ -213,6 +215,7 @@ function renderLists(){
     div.onclick = ()=>{ if (eastPick.length<15){ eastPick.push(code); eastPool = eastPool.filter(c=>c!==code); sync(); } };
     els.eastPool.appendChild(div);
   });
+
   els.westPool.innerHTML = "";
   westPool.forEach(code=>{
     const div = document.createElement('div');
@@ -222,7 +225,7 @@ function renderLists(){
     els.westPool.appendChild(div);
   });
 
-  // Picks
+  // Pick-listor
   els.eastPick.innerHTML = "";
   eastPick.forEach((code,i)=>{
     const div = document.createElement('div');
@@ -231,6 +234,7 @@ function renderLists(){
     div.onclick = ()=>{ eastPick = eastPick.filter((c,idx)=>idx!==i); eastPool.push(code); sync(); };
     els.eastPick.appendChild(div);
   });
+
   els.westPick.innerHTML = "";
   westPick.forEach((code,i)=>{
     const div = document.createElement('div');
@@ -244,7 +248,6 @@ function renderLists(){
   els.westCount.textContent = fmtCount(westPick);
 
   const locked = isLocked();
-  // <- Viktigt: låt knapparna vara klickbara (endast lås/antal styr)
   els.saveEast.disabled = locked || eastPick.length!==15;
   els.saveWest.disabled = locked || westPick.length!==15;
 }
@@ -269,7 +272,12 @@ els.tabs.forEach(t=>{
   });
 });
 
-/* Spara via RPC */
+/* ======= STATUS "TOAST" ======= */
+function toast(msg, ok=true){
+  els.status.innerHTML = ok ? `✅ ${msg}` : `<span class="neg">❌ ${msg}</span>`;
+}
+
+/* ======= SPARA (RPC) ======= */
 async function savePicks(conf){
   const name = els.name.value.trim();
   if (!name){ alert("Skriv ditt namn först."); return; }
@@ -278,8 +286,10 @@ async function savePicks(conf){
   const picks = (conf==="East" ? eastPick : westPick);
   if (picks.length!==15){ alert("Du måste välja alla 15 lag."); return; }
 
-  els.status.textContent = `Sparar ${conf}…`;
-  console.log('CLICK', conf, { name, picks });
+  const btn = conf==="East" ? els.saveEast : els.saveWest;
+  btn.disabled = true;
+  toast(`Sparar ${conf}…`);
+  console.log("CLICK", conf, { name, picks });
 
   const { data, error } = await sb.rpc('upsert_pick', {
     p_name: name,
@@ -289,24 +299,33 @@ async function savePicks(conf){
   });
 
   if (error){
-    console.error('RPC error', error);
-    els.status.innerHTML = `<span class="neg">Fel vid sparning (${conf}): ${error.message}</span>`;
-  } else {
-    console.log('RPC ok', data);
-    els.status.textContent = `Sparat ${conf}.`;
+    console.error("RPC error", error);
+    toast(`Fel vid sparning (${conf}): ${error.message}`, false);
+  }else{
+    console.log("RPC ok", data);
+    toast(`Sparat ${conf}.`);
   }
+
+  // återaktivera knapp enligt regler
+  btn.disabled = isLocked() || picks.length!==15;
 }
 
-els.saveEast.addEventListener('click', ()=>{ console.log('CLICK EAST'); savePicks("East"); });
-els.saveWest.addEventListener('click', ()=>{ console.log('CLICK WEST'); savePicks("West"); });
+els.saveEast.addEventListener('click', ()=>savePicks("East"));
+els.saveWest.addEventListener('click', ()=>savePicks("West"));
 
-/* Ladda mina picks från Supabase (om de finns) */
+/* ======= Ladda mina picks ======= */
 async function loadMyPicks(name){
-  const { data, error } = await sb.from('picks').select('conference,order').eq('name', name).eq('season', SEASON);
+  const { data, error } = await sb.from('picks')
+    .select('conference,order')
+    .eq('name', name)
+    .eq('season', SEASON);
+
   if (error){ console.warn(error); return; }
   if (!data || !data.length) return;
+
   const eastRow = data.find(r=>r.conference==="East");
   const westRow = data.find(r=>r.conference==="West");
+
   if (eastRow && Array.isArray(eastRow.order)){
     eastPick = [...eastRow.order];
     eastPool = sortedCodesAlpha(T_EAST).filter(c=>!eastPick.includes(c));
@@ -318,16 +337,16 @@ async function loadMyPicks(name){
   sync();
 }
 
-/* Poängregler */
+/* ======= Poäng ======= */
 function scoreForDiff(diff){
   if (diff===0) return 3;
   if (diff===1) return 2;
   if (diff===2) return 1;
   if (diff===3) return 0;
-  return -(diff - 3);
+  return -(diff - 3); // 4 -> -1, 5 -> -2, etc
 }
 
-/* Hämta standings via Edge Function */
+/* ======= Standings via Edge Function ======= */
 async function fetchStandings(){
   const url = `${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
   const res = await fetch(url, { headers: { "Authorization": `Bearer ${SUPABASE_ANON}` }});
@@ -338,7 +357,7 @@ async function fetchStandings(){
   return res.json();
 }
 
-/* Räkna leaderboard (efter låsdatum) */
+/* ======= Leaderboard (efter lås) ======= */
 async function renderLeaderboard(){
   const container = els.leaderWrap;
   container.innerHTML = "";
@@ -347,7 +366,6 @@ async function renderLeaderboard(){
     return;
   }
 
-  // 1) Hämta standings
   let standings;
   try{
     standings = await fetchStandings();
@@ -364,19 +382,19 @@ async function renderLeaderboard(){
     return;
   }
 
-  // 2) Hämta alla picks
   const { data, error } = await sb.from('picks').select('name,conference,order').eq('season', SEASON);
   if (error){ container.innerHTML = `<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; return; }
+
   const byName = {};
   (data||[]).forEach(r=>{
     if (!byName[r.name]) byName[r.name] = {East:null, West:null};
     byName[r.name][r.conference] = r.order;
   });
 
-  // 3) Poäng per person
   const rows = [];
   Object.entries(byName).forEach(([name,parts])=>{
     if (!Array.isArray(parts.East) || !Array.isArray(parts.West)) return;
+
     function sumFor(picks, truth){
       let sum=0;
       picks.forEach((code, idx)=>{
@@ -388,6 +406,7 @@ async function renderLeaderboard(){
       });
       return sum;
     }
+
     const eastPts = sumFor(parts.East, eastOrder);
     const westPts = sumFor(parts.West, westOrder);
     rows.push({ name, eastPts, westPts, total: eastPts + westPts });
@@ -420,11 +439,13 @@ async function renderLeaderboard(){
   container.appendChild(small);
 }
 
-/* Init */
+/* ======= Init ======= */
 (async function init(){
+  // namn från localStorage
   els.name.value = localStorage.getItem('nba_name') || "";
   els.name.addEventListener('input', sync);
 
+  // återställ lokala picks
   try{
     const ep = JSON.parse(localStorage.getItem('eastPick')||"[]");
     const wp = JSON.parse(localStorage.getItem('westPick')||"[]");
@@ -432,10 +453,12 @@ async function renderLeaderboard(){
     if (Array.isArray(wp) && wp.length>0){ westPick = wp; westPool = sortedCodesAlpha(T_WEST).filter(c=>!westPick.includes(c)); }
   }catch{}
 
+  // ladda från server om namn finns
   if (els.name.value.trim()){
     await loadMyPicks(els.name.value.trim());
   }
 
+  // låsinfo
   const locked = isLocked();
   if (locked){
     els.status.textContent = "Låst – picks går ej att ändra.";
@@ -449,67 +472,6 @@ async function renderLeaderboard(){
 })();
 
 els.refreshBtn.addEventListener('click', renderLeaderboard);
-
-/* =======================================================================
-   API-KOD (SQL) – klistra in i Supabase SQL Editor och kör som ett script.
-   Skapar RPC-funktionen som används ovan samt rättigheter.
-
-   1) Kör detta i SQL Editor (Project → SQL → New query) och Execute:
-
----------------------------------------------------------------------------
-create extension if not exists pgcrypto;
-
-create table if not exists public.picks (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  conference text not null check (conference in ('East','West')),
-  season text not null,
-  "order" text[] not null,
-  created_at timestamptz default now(),
-  unique (name, conference, season)
-);
-
-alter table public.picks enable row level security;
-
--- (valfritt) öppna SELECT för alla
-drop policy if exists picks_select_all on public.picks;
-create policy picks_select_all on public.picks
-for select using (true);
-
--- RPC som gör upsert. SECURITY DEFINER gör att RLS inte stoppar insättningen.
-create or replace function public.upsert_pick(
-  p_name       text,
-  p_conference text,
-  p_season     text,
-  p_order      text[]
-)
-returns public.picks
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_row public.picks;
-begin
-  insert into public.picks(name, conference, season, "order")
-  values (p_name, p_conference, p_season, p_order)
-  on conflict (name, conference, season)
-  do update set "order" = excluded."order", created_at = now()
-  returning * into v_row;
-
-  return v_row;
-end
-$$;
-
-revoke all on function public.upsert_pick(text,text,text,text[]) from public;
-grant execute on function public.upsert_pick(text,text,text,text[]) to anon, authenticated;
-
-create index if not exists picks_season_idx on public.picks(season);
----------------------------------------------------------------------------
-
-   2) Klart. Testa sen i din sida – klick på "Spara East/West" ska
-      skapa en POST mot /rest/v1/rpc/upsert_pick och ge 200 i Network.
-======================================================================= */
 </script>
 </body>
 </html>
