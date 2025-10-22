@@ -143,7 +143,12 @@ const LOCK_DATE_ISO = "2025-10-24T18:00:00+02:00";
 const SEASON = "2025";
 /* ========= SLUT KONFIG ========= */
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const sb = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON,
+  { global: { headers: { apikey: SUPABASE_ANON } } }
+);
+
 const tzFormatter = new Intl.DateTimeFormat('sv-SE', { dateStyle:'medium', timeStyle:'short', timeZone: 'Europe/Stockholm' });
 
 const lockDate = new Date(LOCK_DATE_ISO);
