@@ -136,20 +136,11 @@
 <!-- Supabase JS -->
 <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
-/* ========= KONFIGURATION =========
- * 1) Skapa ett Supabase-projekt (Free). Sätt in URL & anon key nedan.
- * 2) Skapa Edge Function "standings" (kod längre ner i denna fil som kommentar).
- * 3) Skapa tabellerna med SQL (också längre ner i filen).
- */
+/* ========= KONFIGURATION ========= */
 const SUPABASE_URL = "https://wqrpfhidctlgqnuxqppp.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxcnBmaGlkY3RsZ3FudXhxcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDk5NTgsImV4cCI6MjA3NjcyNTk1OH0.rQiPQSI6YrIGR2GblEjpUi42jNLU0KVAP01vHOwyLgI";
-
-/* Låsdatum i din tidzon (Europe/Stockholm). Före detta är picks hemliga och editerbara. */
 const LOCK_DATE_ISO = "2025-10-24T18:00:00+02:00";
-
-/* NBA-säsong (använd för badge och standings-funktionen). */
 const SEASON = "2025";
-
 /* ========= SLUT KONFIG ========= */
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -173,10 +164,14 @@ const T_WEST = [
 /* Mappa lagkod → läsvänligt namn */
 const CODE2NAME = Object.fromEntries([...T_EAST, ...T_WEST]);
 
+/* Hjälpare för alfabetisk sortering */
+function sortPoolAlpha(pool){ pool.sort((a,b)=>CODE2NAME[a].localeCompare(CODE2NAME[b])); }
+function sortedCodesAlpha(list){ return list.slice().sort((a,b)=>a[1].localeCompare(b[1])).map(x=>x[0]); }
+
 /* UI-state */
 let activeTab = "East";
-let eastPool = [...T_EAST.map(x=>x[0])];
-let westPool = [...T_WEST.map(x=>x[0])];
+let eastPool = sortedCodesAlpha(T_EAST); // alfabetisk initialt
+let westPool = sortedCodesAlpha(T_WEST); // alfabetisk initialt
 let eastPick = [];
 let westPick = [];
 
@@ -201,6 +196,10 @@ const els = {
 function fmtCount(p){ return `${p.length}/15 valda`; }
 
 function renderLists(){
+  // Håll poolerna alfabetiska vid varje render
+  sortPoolAlpha(eastPool);
+  sortPoolAlpha(westPool);
+
   // Pool
   els.eastPool.innerHTML = "";
   eastPool.forEach(code=>{
@@ -218,6 +217,7 @@ function renderLists(){
     div.onclick = ()=>{ if (westPick.length<15){ westPick.push(code); westPool = westPool.filter(c=>c!==code); sync(); } };
     els.westPool.appendChild(div);
   });
+
   // Picks
   els.eastPick.innerHTML = "";
   eastPick.forEach((code,i)=>{
@@ -297,11 +297,11 @@ async function loadMyPicks(name){
   const westRow = data.find(r=>r.conference==="West");
   if (eastRow && Array.isArray(eastRow.order)){
     eastPick = [...eastRow.order];
-    eastPool = T_EAST.map(x=>x[0]).filter(c=>!eastPick.includes(c));
+    eastPool = sortedCodesAlpha(T_EAST).filter(c=>!eastPick.includes(c));
   }
   if (westRow && Array.isArray(westRow.order)){
     westPick = [...westRow.order];
-    westPool = T_WEST.map(x=>x[0]).filter(c=>!westPick.includes(c));
+    westPool = sortedCodesAlpha(T_WEST).filter(c=>!westPick.includes(c));
   }
   sync();
 }
@@ -312,22 +312,17 @@ function scoreForDiff(diff){
   if (diff===1) return 2;
   if (diff===2) return 1;
   if (diff===3) return 0;
-  // 4 -> -1, 5 -> -2, etc
-  return -(diff - 3);
+  return -(diff - 3); // 4 -> -1, 5 -> -2, etc
 }
 
 /* Hämta standings via Supabase Edge Function (server-side fetch) */
 async function fetchStandings(){
-  // Kalla RPC/Edge Function: /functions/v1/standings?season=2025
   const url = `${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
   const res = await fetch(url, { headers: { "Authorization": `Bearer ${SUPABASE_ANON}` }});
   if (!res.ok){
     const txt = await res.text();
     throw new Error("Standings-funktion svarade ej OK: " + txt);
   }
-  /** Förväntat svar:
-      { east:["ORL","NYK",...15], west:["OKC","GSW",...15], fetched_at:"ISO" }
-   */
   return res.json();
 }
 
@@ -427,8 +422,8 @@ async function renderLeaderboard(){
   try{
     const ep = JSON.parse(localStorage.getItem('eastPick')||"[]");
     const wp = JSON.parse(localStorage.getItem('westPick')||"[]");
-    if (Array.isArray(ep) && ep.length>0){ eastPick = ep; eastPool = T_EAST.map(x=>x[0]).filter(c=>!eastPick.includes(c)); }
-    if (Array.isArray(wp) && wp.length>0){ westPick = wp; westPool = T_WEST.map(x=>x[0]).filter(c=>!westPick.includes(c)); }
+    if (Array.isArray(ep) && ep.length>0){ eastPick = ep; eastPool = sortedCodesAlpha(T_EAST).filter(c=>!eastPick.includes(c)); }
+    if (Array.isArray(wp) && wp.length>0){ westPick = wp; westPool = sortedCodesAlpha(T_WEST).filter(c=>!westPick.includes(c)); }
   }catch{}
 
   // Om namn finns – hämta sparade picks (kan ligga på annan enhet)
@@ -454,118 +449,8 @@ async function renderLeaderboard(){
 els.refreshBtn.addEventListener('click', renderLeaderboard);
 
 /* ===========================
-   SUPABASE – TABELL-SCHEMA
-   Kör detta i Supabase SQL Editor (en gång):
----------------------------------------------
-create table if not exists picks (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  conference text not null check (conference in ('East','West')),
-  season text not null,
-  "order" text[] not null, -- array av lagkoder t.ex. {"ORL","NYK",...}
-  created_at timestamptz default now(),
-  unique (name, conference, season)
-);
-
--- Öppna för anonym läs/skriv (RLS) men utan att avslöja picks före låsdatum.
--- Enklast: stäng RLS helt (för hobbybruk). Vill du ha striktare sekretess,
--- använd RLS och en "lock_date" tabell + policies.
-alter table picks enable row level security;
-drop policy if exists "read_all_after_lock" on picks;
-drop policy if exists "upsert_own_name" on picks;
-
--- Minimalistisk policy: alla får läsa/skriva allt (enkelt för tävling).
--- (Vill du hårdlåsa före datum, lämna läs förbjudet och låt klienten dölja UI.)
-create policy "read_all" on picks for select using (true);
-create policy "write_all" on picks for insert with check (true);
-create policy "update_all" on picks for update using (true);
-
--- (Valfritt) index
-create index if not exists picks_season_idx on picks(season);
----------------------------------------------
-
-
-/* ===========================
-   SUPABASE EDGE FUNCTION: standings
-   Skapar JSON med East/West-ordning via ESPN-standings (server-side fetch).
-   Deploya i Supabase CLI: supabase functions deploy standings
----------------------------------------------
-File: supabase/functions/standings/index.ts
-
-// Deno / Edge Function
-// URL att hämta från (ESPN API är offentligt)
-const ESPN = "https://site.api.espn.com/apis/v2/sports/basketball/nba/standings";
-
-function confFromName(name: string){
-  return name.toLowerCase().includes('eastern') ? 'East' : 'West';
-}
-
-// Mappa ESPN team-abbrev → våra koder
-const MAP: Record<string,string> = {
-  BOS:'BOS', BKN:'BKN', NYK:'NYK', PHI:'PHI', TOR:'TOR',
-  CHI:'CHI', CLE:'CLE', DET:'DET', IND:'IND', MIL:'MIL',
-  ATL:'ATL', CHA:'CHA', MIA:'MIA', ORL:'ORL', WAS:'WAS',
-  DEN:'DEN', MIN:'MIN', OKC:'OKC', POR:'POR', UTA:'UTA',
-  GSW:'GSW', LAC:'LAC', LAL:'LAL', PHX:'PHX', SAC:'SAC',
-  DAL:'DAL', HOU:'HOU', MEM:'MEM', NOP:'NOP', SAS:'SAS'
-};
-
-Deno.serve(async (req) => {
-  const url = new URL(req.url);
-  const season = url.searchParams.get("season") ?? "";
-  // ESPN har flera format; detta returnerar aktuell tabell för pågående säsong.
-  const r = await fetch(ESPN);
-  if (!r.ok) return new Response("ESPN fetch fail", { status: 502 });
-  const js = await r.json();
-
-  // js.children[] brukar ha två entries (East/West). Inuti → standings.entries
-  const east: string[] = [];
-  const west: string[] = [];
-
-  try {
-    const children = js.children ?? [];
-    for (const blk of children){
-      const conf = confFromName(blk.name ?? "");
-      const entries = blk.standings?.entries ?? [];
-      // Sorterat redan; plocka team abbrev
-      const arr: string[] = [];
-      for (const e of entries){
-        const abbr = e.team?.abbreviation;
-        const code = MAP[abbr] ?? "";
-        if (code) arr.push(code);
-      }
-      if (conf === 'East') east.push(...arr);
-      if (conf === 'West') west.push(...arr);
-    }
-  } catch (_){}
-
-  // Fallback: om children saknas, prova js.children[0].standings.conferences etc (ESPN ändrar ibland)
-  if (east.length===0 || west.length===0){
-    // Försök annan struktur
-    try{
-      const confs = js.standings?.groups ?? js.standings?.children ?? [];
-      for (const g of confs){
-        const conf = confFromName(g.name ?? "");
-        const entries = g.standings?.entries ?? g.entries ?? [];
-        const arr: string[] = [];
-        for (const e of entries){
-          const abbr = e.team?.abbreviation;
-          const code = MAP[abbr] ?? "";
-          if (code) arr.push(code);
-        }
-        if (conf === 'East' && east.length===0) east.push(...arr);
-        if (conf === 'West' && west.length===0) west.push(...arr);
-      }
-    }catch(_){}
-  }
-
-  const body = {
-    east, west, season, fetched_at: new Date().toISOString()
-  };
-  return new Response(JSON.stringify(body), { headers: { "Content-Type":"application/json" }});
-});
----------------------------------------------
-*/
+   SUPABASE – TABELL-SCHEMA (se separat SQL-block i chatten)
+=========================== */
 </script>
 </body>
 </html>
