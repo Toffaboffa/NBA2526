@@ -37,7 +37,6 @@
     .hint{font-size:.9rem;color:var(--muted)}
     .note{background:#0c1322;border:1px solid var(--border);padding:8px 10px;border-radius:10px}
     .mono{font-family:ui-monospace, Consolas, monospace}
-    /* Deltagare-kortet */
     .pillwrap{margin-top:8px;display:flex;flex-wrap:wrap}
   </style>
 </head>
@@ -63,7 +62,7 @@
     </div>
   </div>
 
-  <!-- Deltagare (alltid synlig) -->
+  <!-- Deltagare -->
   <div class="card" style="margin-top:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div><b>Deltagare</b> <span class="muted small">(säsong <span id="seasonText"></span>)</span></div>
@@ -72,13 +71,13 @@
     <div id="pList" class="pillwrap muted small">Laddar…</div>
   </div>
 
-  <!-- Tabs East/West -->
+  <!-- Tabs -->
   <div class="tabbar">
     <div class="tab active" data-tab="East">Eastern Conference</div>
     <div class="tab" data-tab="West">Western Conference</div>
   </div>
 
-  <!-- UI per tab -->
+  <!-- East -->
   <div id="tabEast" class="row">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -100,6 +99,7 @@
     </div>
   </div>
 
+  <!-- West -->
   <div id="tabWest" class="row" style="display:none">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -123,7 +123,7 @@
 
   <div class="sep"></div>
 
-  <!-- Leaderboard & jämförelse -->
+  <!-- Leaderboard -->
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:end;gap:10px;flex-wrap:wrap;">
       <div>
@@ -147,128 +147,92 @@
 <!-- Supabase JS -->
 <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
-/* ========= KONFIGURATION ========= */
+/* ========= KONFIG ========= */
 const SUPABASE_URL  = "https://wqrpfhidctlgqnuxqppp.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxcnBmaGlkY3RsZ3FudXhxcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDk5NTgsImV4cCI6MjA3NjcyNTk1OH0.rQiPQSI6YrIGR2GblEjpUi42jNLU0KVAP01vHOwyLgI";
 const LOCK_DATE_ISO = "2025-10-24T18:00:00+02:00";
 const SEASON        = "2025";
 const PARTICIPANTS_POLL_MS = 30000;
-/* ========= SLUT KONFIG ========= */
+/* ========= SLUT ========= */
 
-const sb = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON,
-  { global: { headers: { apikey: SUPABASE_ANON } } }
-);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, { global:{ headers:{ apikey: SUPABASE_ANON }}});
 
 const tzFormatter = new Intl.DateTimeFormat('sv-SE', { dateStyle:'medium', timeStyle:'short', timeZone: 'Europe/Stockholm' });
-
 const lockDate = new Date(LOCK_DATE_ISO);
 document.getElementById('lockInfo').textContent = tzFormatter.format(lockDate);
 document.getElementById('seasonBadge').textContent = `Säsong ${SEASON}/26`;
 document.getElementById('seasonText').textContent = SEASON;
 
-const T_EAST = [
-  ["CLE","Cleveland Cavaliers"],["NYK","New York Knicks"],["ORL","Orlando Magic"],["ATL","Atlanta Hawks"],["MIL","Milwaukee Bucks"],
-  ["DET","Detroit Pistons"],["PHI","Philadelphia 76ers"],["BOS","Boston Celtics"],["IND","Indiana Pacers"],["MIA","Miami Heat"],
-  ["TOR","Toronto Raptors"],["CHI","Chicago Bulls"],["CHA","Charlotte Hornets"],["BKN","Brooklyn Nets"],["WAS","Washington Wizards"]
-];
-const T_WEST = [
-  ["OKC","Oklahoma City Thunder"],["GSW","Golden State Warriors"],["HOU","Houston Rockets"],["DEN","Denver Nuggets"],["MIN","Minnesota Timberwolves"],
-  ["LAL","Los Angeles Lakers"],["SAS","San Antonio Spurs"],["LAC","Los Angeles Clippers"],["DAL","Dallas Mavericks"],["SAC","Sacramento Kings"],
-  ["MEM","Memphis Grizzlies"],["POR","Portland Trail Blazers"],["UTA","Utah Jazz"],["PHX","Phoenix Suns"],["NOP","New Orleans Pelicans"]
-];
-
-/* Kod -> namn */
+const T_EAST = [["CLE","Cleveland Cavaliers"],["NYK","New York Knicks"],["ORL","Orlando Magic"],["ATL","Atlanta Hawks"],["MIL","Milwaukee Bucks"],["DET","Detroit Pistons"],["PHI","Philadelphia 76ers"],["BOS","Boston Celtics"],["IND","Indiana Pacers"],["MIA","Miami Heat"],["TOR","Toronto Raptors"],["CHI","Chicago Bulls"],["CHA","Charlotte Hornets"],["BKN","Brooklyn Nets"],["WAS","Washington Wizards"]];
+const T_WEST = [["OKC","Oklahoma City Thunder"],["GSW","Golden State Warriors"],["HOU","Houston Rockets"],["DEN","Denver Nuggets"],["MIN","Minnesota Timberwolves"],["LAL","Los Angeles Lakers"],["SAS","San Antonio Spurs"],["LAC","Los Angeles Clippers"],["DAL","Dallas Mavericks"],["SAC","Sacramento Kings"],["MEM","Memphis Grizzlies"],["POR","Portland Trail Blazers"],["UTA","Utah Jazz"],["PHX","Phoenix Suns"],["NOP","New Orleans Pelicans"]];
 const CODE2NAME = Object.fromEntries([...T_EAST, ...T_WEST]);
-
-/* Alfabetiskt hjälp */
 function sortPoolAlpha(pool){ pool.sort((a,b)=>CODE2NAME[a].localeCompare(CODE2NAME[b])); }
 function sortedCodesAlpha(list){ return list.slice().sort((a,b)=>a[1].localeCompare(b[1])).map(x=>x[0]); }
 
-/* UI-state */
-let activeTab = "East";
-let eastPool = sortedCodesAlpha(T_EAST);
-let westPool = sortedCodesAlpha(T_WEST);
-let eastPick = [];
-let westPick = [];
+let activeTab="East";
+let eastPool=sortedCodesAlpha(T_EAST), westPool=sortedCodesAlpha(T_WEST);
+let eastPick=[], westPick=[];
 
-/* Elements */
 const els = {
-  name: document.getElementById('nameInput'),
-  status: document.getElementById('status'),
-  eastPool: document.getElementById('eastPool'),
-  westPool: document.getElementById('westPool'),
-  eastPick: document.getElementById('eastPick'),
-  westPick: document.getElementById('westPick'),
-  eastCount: document.getElementById('eastCount'),
-  westCount: document.getElementById('westCount'),
-  saveEast: document.getElementById('saveEastBtn'),
-  saveWest: document.getElementById('saveWestBtn'),
-  tabs: Array.from(document.querySelectorAll('.tab')),
-  tabEast: document.getElementById('tabEast'),
-  tabWest: document.getElementById('tabWest'),
-  leaderWrap: document.getElementById('leaderWrap'),
-  refreshBtn: document.getElementById('refreshBtn'),
-  pCount: document.getElementById('pCount'),
-  pList: document.getElementById('pList'),
+  name:document.getElementById('nameInput'),
+  status:document.getElementById('status'),
+  eastPool:document.getElementById('eastPool'),
+  westPool:document.getElementById('westPool'),
+  eastPick:document.getElementById('eastPick'),
+  westPick:document.getElementById('westPick'),
+  eastCount:document.getElementById('eastCount'),
+  westCount:document.getElementById('westCount'),
+  saveEast:document.getElementById('saveEastBtn'),
+  saveWest:document.getElementById('saveWestBtn'),
+  tabs:[...document.querySelectorAll('.tab')],
+  tabEast:document.getElementById('tabEast'),
+  tabWest:document.getElementById('tabWest'),
+  leaderWrap:document.getElementById('leaderWrap'),
+  refreshBtn:document.getElementById('refreshBtn'),
+  pCount:document.getElementById('pCount'),
+  pList:document.getElementById('pList'),
 };
 
 function fmtCount(p){ return `${p.length}/15 valda`; }
 
-/* ======= RENDER ======= */
+/* ----- render lists ----- */
 function renderLists(){
-  sortPoolAlpha(eastPool);
-  sortPoolAlpha(westPool);
-
-  // Pool
-  els.eastPool.innerHTML = "";
+  sortPoolAlpha(eastPool); sortPoolAlpha(westPool);
+  els.eastPool.innerHTML="";
   eastPool.forEach(code=>{
-    const div = document.createElement('div');
-    div.className = "item";
-    div.innerHTML = `<span class="idx">+</span> <span>${CODE2NAME[code]}</span>`;
-    div.onclick = ()=>{ if (eastPick.length<15){ eastPick.push(code); eastPool = eastPool.filter(c=>c!==code); sync(); } };
-    els.eastPool.appendChild(div);
+    const d=document.createElement('div'); d.className="item";
+    d.innerHTML=`<span class="idx">+</span> <span>${CODE2NAME[code]}</span>`;
+    d.onclick=()=>{ if(eastPick.length<15){ eastPick.push(code); eastPool=eastPool.filter(c=>c!==code); sync(); } };
+    els.eastPool.appendChild(d);
   });
-
-  els.westPool.innerHTML = "";
+  els.westPool.innerHTML="";
   westPool.forEach(code=>{
-    const div = document.createElement('div');
-    div.className = "item";
-    div.innerHTML = `<span class="idx">+</span> <span>${CODE2NAME[code]}</span>`;
-    div.onclick = ()=>{ if (westPick.length<15){ westPick.push(code); westPool = westPool.filter(c=>c!==code); sync(); } };
-    els.westPool.appendChild(div);
+    const d=document.createElement('div'); d.className="item";
+    d.innerHTML=`<span class="idx">+</span> <span>${CODE2NAME[code]}</span>`;
+    d.onclick=()=>{ if(westPick.length<15){ westPick.push(code); westPool=westPool.filter(c=>c!==code); sync(); } };
+    els.westPool.appendChild(d);
   });
-
-  // Picks
-  els.eastPick.innerHTML = "";
+  els.eastPick.innerHTML="";
   eastPick.forEach((code,i)=>{
-    const div = document.createElement('div');
-    div.className = "item";
-    div.innerHTML = `<span class="idx">${i+1}</span> <span>${CODE2NAME[code]}</span>`;
-    div.onclick = ()=>{ eastPick = eastPick.filter((c,idx)=>idx!==i); eastPool.push(code); sync(); };
-    els.eastPick.appendChild(div);
+    const d=document.createElement('div'); d.className="item";
+    d.innerHTML=`<span class="idx">${i+1}</span> <span>${CODE2NAME[code]}</span>`;
+    d.onclick=()=>{ eastPick=eastPick.filter((c,idx)=>idx!==i); eastPool.push(code); sync(); };
+    els.eastPick.appendChild(d);
   });
-
-  els.westPick.innerHTML = "";
+  els.westPick.innerHTML="";
   westPick.forEach((code,i)=>{
-    const div = document.createElement('div');
-    div.className = "item";
-    div.innerHTML = `<span class="idx">${i+1}</span> <span>${CODE2NAME[code]}</span>`;
-    div.onclick = ()=>{ westPick = westPick.filter((c,idx)=>idx!==i); westPool.push(code); sync(); };
-    els.westPick.appendChild(div);
+    const d=document.createElement('div'); d.className="item";
+    d.innerHTML=`<span class="idx">${i+1}</span> <span>${CODE2NAME[code]}</span>`;
+    d.onclick=()=>{ westPick=westPick.filter((c,idx)=>idx!==i); westPool.push(code); sync(); };
+    els.westPick.appendChild(d);
   });
-
-  els.eastCount.textContent = fmtCount(eastPick);
-  els.westCount.textContent = fmtCount(westPick);
-
-  const locked = isLocked();
-  els.saveEast.disabled = locked || eastPick.length!==15;
-  els.saveWest.disabled = locked || westPick.length!==15;
+  els.eastCount.textContent=fmtCount(eastPick);
+  els.westCount.textContent=fmtCount(westPick);
+  const locked=isLocked();
+  els.saveEast.disabled=locked||eastPick.length!==15;
+  els.saveWest.disabled=locked||westPick.length!==15;
 }
-
-function isLocked(){ return new Date() >= lockDate; }
-
+function isLocked(){ return new Date()>=lockDate; }
 function sync(){
   renderLists();
   localStorage.setItem('nba_name', els.name.value.trim());
@@ -276,213 +240,124 @@ function sync(){
   localStorage.setItem('westPick', JSON.stringify(westPick));
 }
 
-/* Tabs */
+/* tabs */
 els.tabs.forEach(t=>{
   t.addEventListener('click', ()=>{
-    els.tabs.forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    activeTab = t.dataset.tab;
-    els.tabEast.style.display = activeTab==="East" ? "" : "none";
-    els.tabWest.style.display = activeTab==="West" ? "" : "none";
+    els.tabs.forEach(x=>x.classList.remove('active')); t.classList.add('active');
+    activeTab=t.dataset.tab; els.tabEast.style.display=activeTab==="East"?"":"none"; els.tabWest.style.display=activeTab==="West"?"":"none";
   });
 });
 
-/* ======= STATUS "TOAST" ======= */
-function toast(msg, ok=true){
-  els.status.innerHTML = ok ? `✅ ${msg}` : `<span class="neg">❌ ${msg}</span>`;
-}
+/* status */
+function toast(msg, ok=true){ els.status.innerHTML = ok?`✅ ${msg}`:`<span class="neg">❌ ${msg}</span>`; }
 
-/* ======= DELTAGARE ======= */
-async function renderParticipants(){
-  // Hämta alla namn för säsongen, deduplicera och sortera
-  const { data, error } = await sb.from('picks').select('name').eq('season', SEASON);
-  if (error){
-    console.warn('participants error', error);
-    els.pList.innerHTML = `<span class="muted small">Kunde inte hämta deltagare.</span>`;
-    els.pCount.textContent = '0';
-    return;
+/* ---- HÄMTA MINA PICKS (tillagd igen) ---- */
+async function loadMyPicks(name){
+  const { data, error } = await sb.from('picks').select('conference,order').eq('name', name).eq('season', SEASON);
+  if (error){ console.warn('loadMyPicks error', error); return; }
+  if (!data || !data.length) return;
+  const eastRow=data.find(r=>r.conference==="East");
+  const westRow=data.find(r=>r.conference==="West");
+  if (eastRow && Array.isArray(eastRow.order)){
+    eastPick=[...eastRow.order];
+    eastPool=sortedCodesAlpha(T_EAST).filter(c=>!eastPick.includes(c));
   }
-  const names = Array.from(new Set((data||[]).map(r=>r.name).filter(Boolean)))
-    .sort((a,b)=>a.localeCompare(b, 'sv'));
-  els.pCount.textContent = String(names.length);
-  els.pList.innerHTML = names.length
-    ? names.map(n=>`<span class="pill">${n}</span>`).join('')
-    : `<span class="muted small">Inga registrerade ännu.</span>`;
+  if (westRow && Array.isArray(westRow.order)){
+    westPick=[...westRow.order];
+    westPool=sortedCodesAlpha(T_WEST).filter(c=>!westPick.includes(c));
+  }
+  sync();
 }
 
-/* ======= SPARA (RPC) ======= */
+/* deltagare */
+async function renderParticipants(){
+  const { data, error } = await sb.from('picks').select('name').eq('season', SEASON);
+  if (error){ console.warn('participants error', error); els.pList.innerHTML=`<span class="muted small">Kunde inte hämta deltagare.</span>`; els.pCount.textContent='0'; return; }
+  const names = Array.from(new Set((data||[]).map(r=>r.name).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'sv'));
+  els.pCount.textContent=String(names.length);
+  els.pList.innerHTML = names.length? names.map(n=>`<span class="pill">${n}</span>`).join('') : `<span class="muted small">Inga registrerade ännu.</span>`;
+}
+
+/* spara */
 async function savePicks(conf){
-  const name = els.name.value.trim();
+  const name=els.name.value.trim();
   if (!name){ alert("Skriv ditt namn först."); return; }
   if (isLocked()){ alert("Låst – kan inte spara efter låsdatum."); return; }
-
-  const picks = (conf==="East" ? eastPick : westPick);
+  const picks=(conf==="East"?eastPick:westPick);
   if (picks.length!==15){ alert("Du måste välja alla 15 lag."); return; }
-
-  const btn = conf==="East" ? els.saveEast : els.saveWest;
-  btn.disabled = true;
-  toast(`Sparar ${conf}…`);
-
-  const { data, error } = await sb.rpc('upsert_pick', {
-    p_name: name,
-    p_conference: conf,
-    p_season: SEASON,
-    p_order: picks
-  });
-
-  if (error){
-    console.error("RPC error", error);
-    toast(`Fel vid sparning (${conf}): ${error.message}`, false);
-  }else{
-    toast(`Sparat ${conf}.`);
-    // uppdatera deltagare om nytt namn tillkom
-    renderParticipants();
-  }
-  btn.disabled = isLocked() || picks.length!==15;
+  const btn=conf==="East"?els.saveEast:els.saveWest;
+  btn.disabled=true; toast(`Sparar ${conf}…`);
+  const { data, error } = await sb.rpc('upsert_pick', { p_name:name, p_conference:conf, p_season:SEASON, p_order:picks });
+  if (error){ console.error("RPC error", error); toast(`Fel vid sparning (${conf}): ${error.message}`, false); }
+  else { toast(`Sparat ${conf}.`); renderParticipants(); }
+  btn.disabled=isLocked()||picks.length!==15;
 }
-
-/* Knappkopplingar */
 els.saveEast.addEventListener('click', ()=>savePicks("East"));
 els.saveWest.addEventListener('click', ()=>savePicks("West"));
 
-/* ======= Poäng ======= */
-function scoreForDiff(diff){
-  if (diff===0) return 3;
-  if (diff===1) return 2;
-  if (diff===2) return 1;
-  if (diff===3) return 0;
-  return -(diff - 3);
-}
-
-/* ======= Standings via Edge Function ======= */
+/* poäng + standings + leaderboard (oförändrat) */
+function scoreForDiff(diff){ if(diff===0)return 3; if(diff===1)return 2; if(diff===2)return 1; if(diff===3)return 0; return -(diff-3); }
 async function fetchStandings(){
-  const url = `${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
-  const res = await fetch(url, { headers: { "Authorization": `Bearer ${SUPABASE_ANON}` }});
-  if (!res.ok){
-    const txt = await res.text();
-    throw new Error("Standings-funktion svarade ej OK: " + txt);
-  }
+  const url=`${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
+  const res=await fetch(url,{ headers:{ "Authorization":`Bearer ${SUPABASE_ANON}` }});
+  if(!res.ok){ const txt=await res.text(); throw new Error("Standings-funktion svarade ej OK: "+txt); }
   return res.json();
 }
-
-/* ======= Leaderboard (efter lås) ======= */
 async function renderLeaderboard(){
-  const container = els.leaderWrap;
-  container.innerHTML = "";
-  if (!isLocked()){
-    container.innerHTML = `<div class="muted">Dolt till låsdatum.</div>`;
-    return;
-  }
-
-  let standings;
-  try{
-    standings = await fetchStandings();
-  }catch(err){
-    console.error(err);
-    container.innerHTML = `<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}<br/>Kör <span class="mono">standings</span>-funktionen i Supabase eller uppdatera din anon key/URL.</div>`;
-    return;
-  }
-
-  const eastOrder = standings.east;
-  const westOrder = standings.west;
-  if (!Array.isArray(eastOrder) || !Array.isArray(westOrder)){
-    container.innerHTML = `<div class="note small">Felaktigt standings-svar.</div>`;
-    return;
-  }
-
+  const container=els.leaderWrap; container.innerHTML="";
+  if(!isLocked()){ container.innerHTML=`<div class="muted">Dolt till låsdatum.</div>`; return; }
+  let standings; try{ standings=await fetchStandings(); }catch(err){ console.error(err); container.innerHTML=`<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}</div>`; return; }
+  const eastOrder=standings.east, westOrder=standings.west;
+  if(!Array.isArray(eastOrder)||!Array.isArray(westOrder)){ container.innerHTML=`<div class="note small">Felaktigt standings-svar.</div>`; return; }
   const { data, error } = await sb.from('picks').select('name,conference,order').eq('season', SEASON);
-  if (error){ container.innerHTML = `<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; return; }
-
-  const byName = {};
-  (data||[]).forEach(r=>{
-    if (!byName[r.name]) byName[r.name] = {East:null, West:null};
-    byName[r.name][r.conference] = r.order;
-  });
-
-  const rows = [];
+  if(error){ container.innerHTML=`<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; return; }
+  const byName={}; (data||[]).forEach(r=>{ if(!byName[r.name]) byName[r.name]={East:null,West:null}; byName[r.name][r.conference]=r.order; });
+  const rows=[];
   Object.entries(byName).forEach(([name,parts])=>{
-    if (!Array.isArray(parts.East) || !Array.isArray(parts.West)) return;
-
-    function sumFor(picks, truth){
-      let sum=0;
-      picks.forEach((code, idx)=>{
-        const trueIdx = truth.indexOf(code);
-        if (trueIdx>=0){
-          const diff = Math.abs(trueIdx - idx);
-          sum += scoreForDiff(diff);
-        }
-      });
-      return sum;
-    }
-
-    const eastPts = sumFor(parts.East, eastOrder);
-    const westPts = sumFor(parts.West, westOrder);
-    rows.push({ name, eastPts, westPts, total: eastPts + westPts });
+    if(!Array.isArray(parts.East)||!Array.isArray(parts.West)) return;
+    const sumFor=(picks,truth)=>picks.reduce((sum,code,idx)=>{ const t=truth.indexOf(code); return sum+(t>=0?scoreForDiff(Math.abs(t-idx)):0); },0);
+    const eastPts=sumFor(parts.East,eastOrder), westPts=sumFor(parts.West,westOrder);
+    rows.push({ name, eastPts, westPts, total:eastPts+westPts });
   });
-
-  rows.sort((a,b)=> b.total - a.total || a.name.localeCompare(b.name));
-
-  const fetchedTxt = standings.fetched_at ? tzFormatter.format(new Date(standings.fetched_at)) : "nu";
-  const tbl = document.createElement('table');
-  tbl.innerHTML = `
-    <thead>
-      <tr><th>#</th><th>Namn</th><th>East</th><th>West</th><th>Total</th></tr>
-    </thead>
-    <tbody>
-      ${rows.map((r,i)=>`
-        <tr>
-          <td>${i+1}</td>
-          <td>${r.name}</td>
-          <td>${r.eastPts>=0?`<span class="pos">+${r.eastPts}</span>`:`<span class="neg">${r.eastPts}</span>`}</td>
-          <td>${r.westPts>=0?`<span class="pos">+${r.westPts}</span>`:`<span class="neg">${r.westPts}</span>`}</td>
-          <td><b>${r.total>=0?`<span class="pos">+${r.total}</span>`:`<span class="neg">${r.total}</span>`}</b></td>
-        </tr>
-      `).join('')}
-    </tbody>
-  `;
-  const small = document.createElement('div');
-  small.className = "hint";
-  small.textContent = `Standings hämtade: ${fetchedTxt}`;
-  container.appendChild(tbl);
-  container.appendChild(small);
+  rows.sort((a,b)=> b.total-a.total || a.name.localeCompare(b.name));
+  const fetchedTxt=standings.fetched_at?tzFormatter.format(new Date(standings.fetched_at)):"nu";
+  const tbl=document.createElement('table');
+  tbl.innerHTML=`<thead><tr><th>#</th><th>Namn</th><th>East</th><th>West</th><th>Total</th></tr></thead>
+  <tbody>${rows.map((r,i)=>`
+    <tr><td>${i+1}</td><td>${r.name}</td>
+    <td>${r.eastPts>=0?`<span class="pos">+${r.eastPts}</span>`:`<span class="neg">${r.eastPts}</span>`}</td>
+    <td>${r.westPts>=0?`<span class="pos">+${r.westPts}</span>`:`<span class="neg">${r.westPts}</span>`}</td>
+    <td><b>${r.total>=0?`<span class="pos">+${r.total}</span>`:`<span class="neg">${r.total}</span>`}</b></td></tr>`).join('')}</tbody>`;
+  const small=document.createElement('div'); small.className="hint"; small.textContent=`Standings hämtade: ${fetchedTxt}`;
+  container.appendChild(tbl); container.appendChild(small);
 }
 
-/* ======= Init ======= */
+/* init */
 (async function init(){
-  els.name.value = localStorage.getItem('nba_name') || "";
+  els.name.value=localStorage.getItem('nba_name')||"";
   els.name.addEventListener('input', sync);
+  els.name.addEventListener('change', async ()=>{ const n=els.name.value.trim(); if(n) await loadMyPicks(n); });
 
   try{
-    const ep = JSON.parse(localStorage.getItem('eastPick')||"[]");
-    const wp = JSON.parse(localStorage.getItem('westPick')||"[]");
-    if (Array.isArray(ep) && ep.length>0){ eastPick = ep; eastPool = sortedCodesAlpha(T_EAST).filter(c=>!eastPick.includes(c)); }
-    if (Array.isArray(wp) && wp.length>0){ westPick = wp; westPool = sortedCodesAlpha(T_WEST).filter(c=>!westPick.includes(c)); }
+    const ep=JSON.parse(localStorage.getItem('eastPick')||"[]");
+    const wp=JSON.parse(localStorage.getItem('westPick')||"[]");
+    if(Array.isArray(ep)&&ep.length>0){ eastPick=ep; eastPool=sortedCodesAlpha(T_EAST).filter(c=>!eastPick.includes(c)); }
+    if(Array.isArray(wp)&&wp.length>0){ westPick=wp; westPool=sortedCodesAlpha(T_WEST).filter(c=>!westPick.includes(c)); }
   }catch{}
 
-  if (els.name.value.trim()){
-    await loadMyPicks(els.name.value.trim());
-  }
+  if(els.name.value.trim()){ await loadMyPicks(els.name.value.trim()); }
 
-  const locked = isLocked();
-  if (locked){
-    els.status.textContent = "Låst – picks går ej att ändra.";
-    document.querySelectorAll('button').forEach(b=>{ if (b.id.startsWith('save')) b.disabled = true; });
-  }else{
-    els.status.textContent = "Öppet – du kan spara/uppdatera dina picks.";
-  }
+  const locked=isLocked();
+  if(locked){ els.status.textContent="Låst – picks går ej att ändra."; document.querySelectorAll('button').forEach(b=>{ if(b.id.startsWith('save')) b.disabled=true; }); }
+  else{ els.status.textContent="Öppet – du kan spara/uppdatera dina picks."; }
 
   renderLists();
   await renderParticipants();
   await renderLeaderboard();
 
-  // auto-uppdatera deltagare var 30:e sekund
   setInterval(renderParticipants, PARTICIPANTS_POLL_MS);
 })();
-
-els.refreshBtn.addEventListener('click', async ()=>{
-  await renderParticipants();
-  await renderLeaderboard();
-});
+els.refreshBtn.addEventListener('click', async ()=>{ await renderParticipants(); await renderLeaderboard(); });
 </script>
 </body>
 </html>
