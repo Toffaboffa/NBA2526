@@ -271,11 +271,28 @@ async function loadMyPicks(name){
 
 /* deltagare */
 async function renderParticipants(){
-  const { data, error } = await sb.from('picks').select('name').eq('season', SEASON);
-  if (error){ console.warn('participants error', error); els.pList.innerHTML=`<span class="muted small">Kunde inte hämta deltagare.</span>`; els.pCount.textContent='0'; return; }
-  const names = Array.from(new Set((data||[]).map(r=>r.name).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'sv'));
-  els.pCount.textContent=String(names.length);
-  els.pList.innerHTML = names.length? names.map(n=>`<span class="pill">${n}</span>`).join('') : `<span class="muted small">Inga registrerade ännu.</span>`;
+  // Försök RPC först (bypassar RLS och lämnar bara namn)
+  let names = [];
+  try {
+    const { data, error } = await sb.rpc('list_participants', { p_season: SEASON });
+    if (error) throw error;
+    // data är t.ex. [{ name: "Anna" }, { name: "Bertil" }, ...]
+    names = (data || []).map(r => r.name).filter(Boolean);
+  } catch (e) {
+    console.warn('participants rpc error, fallback to select:', e);
+    // Fallback om RPC inte finns ännu
+    const { data, error } = await sb
+      .from('picks')
+      .select('name')
+      .eq('season', SEASON);
+    if (!error && data) names = Array.from(new Set(data.map(r => r.name).filter(Boolean)));
+  }
+
+  names.sort((a,b) => a.localeCompare(b, 'sv'));
+  els.pCount.textContent = String(names.length);
+  els.pList.innerHTML = names.length
+    ? names.map(n => `<span class="pill">${n}</span>`).join('')
+    : `<span class="muted small">Inga registrerade ännu.</span>`;
 }
 
 /* spara */
