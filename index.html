@@ -270,6 +270,7 @@ els.tabs.forEach(t=>{
 });
 
 /* Save/upsert till Supabase */
+/* Save/upsert till Supabase via RPC */
 async function savePicks(conf){
   const name = els.name.value.trim();
   if (!name){ alert("Skriv ditt namn först."); return; }
@@ -279,19 +280,21 @@ async function savePicks(conf){
   if (picks.length!==15){ alert("Du måste välja alla 15 lag."); return; }
 
   els.status.textContent = `Sparar ${conf}…`;
-  const { error } = await sb.from('picks').upsert({
-    name, conference: conf, order: picks, season: SEASON
-  }, { onConflict: 'name,conference,season' });
+
+  const { error } = await sb.rpc('upsert_pick', {
+    p_name: name,
+    p_conference: conf,
+    p_season: SEASON,
+    p_order: picks
+  });
+
   if (error){
     console.error(error);
     els.status.innerHTML = `<span class="neg">Fel vid sparning (${conf}): ${error.message}</span>`;
-  }else{
+  } else {
     els.status.textContent = `Sparat ${conf}.`;
   }
 }
-
-els.saveEast.addEventListener('click', ()=>savePicks("East"));
-els.saveWest.addEventListener('click', ()=>savePicks("West"));
 
 /* Ladda mina picks från Supabase (om de finns) */
 async function loadMyPicks(name){
