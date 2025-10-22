@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NBA Tips-tävling – Rangordna lag</title>
+  <style>
+    :root{--bg:#0b0f14;--fg:#e7effa;--muted:#94a3b8;--panel:#0f172a;--accent:#22c55e;--danger:#ef4444;--border:#1f2937}
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    .wrap{max-width:1100px;margin:0 auto;padding:20px}
+    h1{font-size:1.4rem;margin:0 0 8px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
+    .muted{color:var(--muted);font-size:.92rem}
+    .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 10px;cursor:pointer;margin:6px 6px 0 0;user-select:none}
+    .pill:hover{border-color:#334155}
+    .list{display:flex;flex-direction:column;gap:6px;min-height:360px}
+    .item{display:flex;align-items:center;gap:8px;border:1px dashed var(--border);border-radius:10px;padding:8px 10px;cursor:pointer}
+    .item:hover{border-color:#334155}
+    .item .idx{width:26px;text-align:center;opacity:.75}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    input[type="text"]{background:#0b1220;border:1px solid var(--border);color:var(--fg);padding:8px 10px;border-radius:8px;min-width:220px}
+    button{background:var(--accent);border:0;color:#052e12;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
+    button[disabled]{opacity:.5;cursor:not-allowed}
+    .tabbar{display:flex;gap:8px;margin:10px 0 14px}
+    .tab{padding:8px 10px;border:1px solid var(--border);border-radius:10px;cursor:pointer}
+    .tab.active{border-color:var(--accent)}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .sep{height:1px;background:var(--border);margin:12px 0}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:.95rem}
+    .neg{color:var(--danger)}
+    .pos{color:#34d399}
+    .center{display:flex;align-items:center;justify-content:center}
+    .small{font-size:.9rem}
+    .badge{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:999px;margin-left:8px}
+    .hint{font-size:.9rem;color:var(--muted)}
+    .note{background:#0c1322;border:1px solid var(--border);padding:8px 10px;border-radius:10px}
+    .mono{font-family:ui-monospace, Consolas, monospace}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NBA Tips-tävling <span class="badge" id="seasonBadge"></span></h1>
+  <div class="muted">Sortera <b>alla 15 lag i varje konferens</b> genom att klicka på lagens namn. Dina val är <b>hemliga</b> tills låsdatum. Efter låsning visas leaderboard & poäng.</div>
+
+  <!-- Konfiguration -->
+  <div class="card" style="margin-top:12px">
+    <div class="grid-2">
+      <div>
+        <label class="small">Ditt namn</label><br/>
+        <input id="nameInput" type="text" placeholder="För- och efternamn" />
+      </div>
+      <div>
+        <label class="small">Status</label><br/>
+        <div id="status" class="note small">Initierar…</div>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:8px">
+      <b>Låsdatum:</b> <span id="lockInfo"></span> — fram till dess kan du ändra och andras picks förblir dolda.
+    </div>
+  </div>
+
+  <!-- Tabs East/West -->
+  <div class="tabbar">
+    <div class="tab active" data-tab="East">Eastern Conference</div>
+    <div class="tab" data-tab="West">Western Conference</div>
+  </div>
+
+  <!-- UI per tab -->
+  <div id="tabEast" class="row">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><b>Välj lag (East)</b></div>
+        <div class="hint">Klicka för att lägga till →</div>
+      </div>
+      <div id="eastPool" class="list"></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><b>Din ordning (East)</b></div>
+        <div class="hint">Klicka för att lägga tillbaka ←</div>
+      </div>
+      <div id="eastPick" class="list"></div>
+      <div class="controls">
+        <button id="saveEastBtn">Spara East</button>
+        <span class="muted small" id="eastCount"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabWest" class="row" style="display:none">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><b>Välj lag (West)</b></div>
+        <div class="hint">Klicka för att lägga till →</div>
+      </div>
+      <div id="westPool" class="list"></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><b>Din ordning (West)</b></div>
+        <div class="hint">Klicka för att lägga tillbaka ←</div>
+      </div>
+      <div id="westPick" class="list"></div>
+      <div class="controls">
+        <button id="saveWestBtn">Spara West</button>
+        <span class="muted small" id="westCount"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Leaderboard & jämförelse -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:end;gap:10px;flex-wrap:wrap;">
+      <div>
+        <b>Leaderboard</b>
+        <div class="hint">Synlig först efter låsdatum. Poäng: exakt +3, ±1 plac. +2, ±2 plac. +1, ±3 = 0, ±4 → −1, ±5 → −2, etc.</div>
+      </div>
+      <div>
+        <button id="refreshBtn">Hämta aktuella standings & räkna om</button>
+      </div>
+    </div>
+    <div id="leaderWrap" style="margin-top:10px">
+      <div class="muted">Dolt till låsdatum.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px" class="muted small">
+    Gratis hosting: GitHub Pages (statisk) + Supabase (Free) för lagring och standings-hämtning.
+  </div>
+</div>
+
+<!-- Supabase JS -->
+<script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+/* ========= KONFIGURATION =========
+ * 1) Skapa ett Supabase-projekt (Free). Sätt in URL & anon key nedan.
+ * 2) Skapa Edge Function "standings" (kod längre ner i denna fil som kommentar).
+ * 3) Skapa tabellerna med SQL (också längre ner i filen).
+ */
+const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
+const SUPABASE_ANON = "YOUR_PUBLIC_ANON_KEY";
+
+/* Låsdatum i din tidzon (Europe/Stockholm). Före detta är picks hemliga och editerbara. */
+const LOCK_DATE_ISO = "2025-11-01T18:00:00+02:00";
+
+/* NBA-säsong (använd för badge och standings-funktionen). */
+const SEASON = "2025";
+
+/* ========= SLUT KONFIG ========= */
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const tzFormatter = new Intl.DateTimeFormat('sv-SE', { dateStyle:'medium', timeStyle:'short', timeZone: 'Europe/Stockholm' });
+
+const lockDate = new Date(LOCK_DATE_ISO);
+document.getElementById('lockInfo').textContent = tzFormatter.format(lockDate);
+document.getElementById('seasonBadge').textContent = `Säsong ${SEASON}/26`;
+
+const T_EAST = [
+  ["CLE","Cleveland Cavaliers"],["NYK","New York Knicks"],["ORL","Orlando Magic"],["ATL","Atlanta Hawks"],["MIL","Milwaukee Bucks"],
+  ["DET","Detroit Pistons"],["PHI","Philadelphia 76ers"],["BOS","Boston Celtics"],["IND","Indiana Pacers"],["MIA","Miami Heat"],
+  ["TOR","Toronto Raptors"],["CHI","Chicago Bulls"],["CHA","Charlotte Hornets"],["BKN","Brooklyn Nets"],["WAS","Washington Wizards"]
+];
+const T_WEST = [
+  ["OKC","Oklahoma City Thunder"],["GSW","Golden State Warriors"],["HOU","Houston Rockets"],["DEN","Denver Nuggets"],["MIN","Minnesota Timberwolves"],
+  ["LAL","Los Angeles Lakers"],["SAS","San Antonio Spurs"],["LAC","Los Angeles Clippers"],["DAL","Dallas Mavericks"],["SAC","Sacramento Kings"],
+  ["MEM","Memphis Grizzlies"],["POR","Portland Trail Blazers"],["UTA","Utah Jazz"],["PHX","Phoenix Suns"],["NOP","New Orleans Pelicans"]
+];
+
+/* Mappa lagkod → läsvänligt namn */
+const CODE2NAME = Object.fromEntries([...T_EAST, ...T_WEST]);
+
+/* UI-state */
+let activeTab = "East";
+let eastPool = [...T_EAST.map(x=>x[0])];
+let westPool = [...T_WEST.map(x=>x[0])];
+let eastPick = [];
+let westPick = [];
+
+const els = {
+  name: document.getElementById('nameInput'),
+  status: document.getElementById('status'),
+  eastPool: document.getElementById('eastPool'),
+  westPool: document.getElementById('westPool'),
+  eastPick: document.getElementById('eastPick'),
+  westPick: document.getElementById('westPick'),
+  eastCount: document.getElementById('eastCount'),
+  westCount: document.getElementById('westCount'),
+  saveEast: document.getElementById('saveEastBtn'),
+  saveWest: document.getElementById('saveWestBtn'),
+  tabs: Array.from(document.querySelectorAll('.tab')),
+  tabEast: document.getElementById('tabEast'),
+  tabWest: document.getElementById('tabWest'),
+  leaderWrap: document.getElementById('leaderWrap'),
+  refreshBtn: document.getElementById('refreshBtn'),
+};
+
+function fmtCount(p){ return `${p.length}/15 valda`; }
+
+function renderLists(){
+  // Pool
+  els.eastPool.innerHTML = "";
+  eastPool.forEach(code=>{
+    const div = document.createElement('div');
+    div.className = "item";
+    div.innerHTML = `<span class="idx">+</span> <span>${CODE2NAME[code]}</span>`;
+    div.onclick = ()=>{ if (eastPick.length<15){ eastPick.push(code); eastPool = eastPool.filter(c=>c!==code); sync(); } };
+    els.eastPool.appendChild(div);
+  });
+  els.westPool.innerHTML = "";
+  westPool.forEach(code=>{
+    const div = document.createElement('div');
+    div.className = "item";
+    div.innerHTML = `<span class="idx">+</span> <span>${CODE2NAME[code]}</span>`;
+    div.onclick = ()=>{ if (westPick.length<15){ westPick.push(code); westPool = westPool.filter(c=>c!==code); sync(); } };
+    els.westPool.appendChild(div);
+  });
+  // Picks
+  els.eastPick.innerHTML = "";
+  eastPick.forEach((code,i)=>{
+    const div = document.createElement('div');
+    div.className = "item";
+    div.innerHTML = `<span class="idx">${i+1}</span> <span>${CODE2NAME[code]}</span>`;
+    div.onclick = ()=>{ eastPick = eastPick.filter((c,idx)=>idx!==i); eastPool.push(code); sync(); };
+    els.eastPick.appendChild(div);
+  });
+  els.westPick.innerHTML = "";
+  westPick.forEach((code,i)=>{
+    const div = document.createElement('div');
+    div.className = "item";
+    div.innerHTML = `<span class="idx">${i+1}</span> <span>${CODE2NAME[code]}</span>`;
+    div.onclick = ()=>{ westPick = westPick.filter((c,idx)=>idx!==i); westPool.push(code); sync(); };
+    els.westPick.appendChild(div);
+  });
+
+  els.eastCount.textContent = fmtCount(eastPick);
+  els.westCount.textContent = fmtCount(westPick);
+
+  const locked = isLocked();
+  els.saveEast.disabled = locked || eastPick.length!==15 || !els.name.value.trim();
+  els.saveWest.disabled = locked || westPick.length!==15 || !els.name.value.trim();
+}
+
+function isLocked(){ return new Date() >= lockDate; }
+
+function sync(){
+  renderLists();
+  localStorage.setItem('nba_name', els.name.value.trim());
+  localStorage.setItem('eastPick', JSON.stringify(eastPick));
+  localStorage.setItem('westPick', JSON.stringify(westPick));
+}
+
+/* Tabs */
+els.tabs.forEach(t=>{
+  t.addEventListener('click', ()=>{
+    els.tabs.forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    activeTab = t.dataset.tab;
+    els.tabEast.style.display = activeTab==="East" ? "" : "none";
+    els.tabWest.style.display = activeTab==="West" ? "" : "none";
+  });
+});
+
+/* Save/upsert till Supabase */
+async function savePicks(conf){
+  const name = els.name.value.trim();
+  if (!name){ alert("Skriv ditt namn först."); return; }
+  if (isLocked()){ alert("Låst – kan inte spara efter låsdatum."); return; }
+
+  const picks = (conf==="East" ? eastPick : westPick);
+  if (picks.length!==15){ alert("Du måste välja alla 15 lag."); return; }
+
+  els.status.textContent = `Sparar ${conf}…`;
+  const { error } = await sb.from('picks').upsert({
+    name, conference: conf, order: picks, season: SEASON
+  }, { onConflict: 'name,conference,season' });
+  if (error){
+    console.error(error);
+    els.status.innerHTML = `<span class="neg">Fel vid sparning (${conf}): ${error.message}</span>`;
+  }else{
+    els.status.textContent = `Sparat ${conf}.`;
+  }
+}
+
+els.saveEast.addEventListener('click', ()=>savePicks("East"));
+els.saveWest.addEventListener('click', ()=>savePicks("West"));
+
+/* Ladda mina picks från Supabase (om de finns) */
+async function loadMyPicks(name){
+  const { data, error } = await sb.from('picks').select('conference,order').eq('name', name).eq('season', SEASON);
+  if (error){ console.warn(error); return; }
+  if (!data || !data.length) return;
+  const eastRow = data.find(r=>r.conference==="East");
+  const westRow = data.find(r=>r.conference==="West");
+  if (eastRow && Array.isArray(eastRow.order)){
+    eastPick = [...eastRow.order];
+    eastPool = T_EAST.map(x=>x[0]).filter(c=>!eastPick.includes(c));
+  }
+  if (westRow && Array.isArray(westRow.order)){
+    westPick = [...westRow.order];
+    westPool = T_WEST.map(x=>x[0]).filter(c=>!westPick.includes(c));
+  }
+  sync();
+}
+
+/* Poängregler */
+function scoreForDiff(diff){
+  if (diff===0) return 3;
+  if (diff===1) return 2;
+  if (diff===2) return 1;
+  if (diff===3) return 0;
+  // 4 -> -1, 5 -> -2, etc
+  return -(diff - 3);
+}
+
+/* Hämta standings via Supabase Edge Function (server-side fetch) */
+async function fetchStandings(){
+  // Kalla RPC/Edge Function: /functions/v1/standings?season=2025
+  const url = `${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
+  const res = await fetch(url, { headers: { "Authorization": `Bearer ${SUPABASE_ANON}` }});
+  if (!res.ok){
+    const txt = await res.text();
+    throw new Error("Standings-funktion svarade ej OK: " + txt);
+  }
+  /** Förväntat svar:
+      { east:["ORL","NYK",...15], west:["OKC","GSW",...15], fetched_at:"ISO" }
+   */
+  return res.json();
+}
+
+/* Räkna leaderboard (bara efter låsdatum) */
+async function renderLeaderboard(){
+  const container = els.leaderWrap;
+  container.innerHTML = "";
+  if (!isLocked()){
+    container.innerHTML = `<div class="muted">Dolt till låsdatum.</div>`;
+    return;
+  }
+
+  // 1) Hämta standings
+  let standings;
+  try{
+    standings = await fetchStandings();
+  }catch(err){
+    console.error(err);
+    container.innerHTML = `<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}<br/>Kör <span class="mono">standings</span>-funktionen i Supabase eller uppdatera din anon key/URL.</div>`;
+    return;
+  }
+
+  const eastOrder = standings.east;
+  const westOrder = standings.west;
+  if (!Array.isArray(eastOrder) || !Array.isArray(westOrder)){
+    container.innerHTML = `<div class="note small">Felaktigt standings-svar.</div>`;
+    return;
+  }
+
+  // 2) Hämta alla picks
+  const { data, error } = await sb.from('picks').select('name,conference,order').eq('season', SEASON);
+  if (error){ container.innerHTML = `<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; return; }
+  const byName = {};
+  (data||[]).forEach(r=>{
+    if (!byName[r.name]) byName[r.name] = {East:null, West:null};
+    byName[r.name][r.conference] = r.order;
+  });
+
+  // 3) Poäng per person
+  const rows = [];
+  Object.entries(byName).forEach(([name,parts])=>{
+    if (!Array.isArray(parts.East) || !Array.isArray(parts.West)) return;
+    let total=0, eastPts=0, westPts=0;
+
+    function sumFor(picks, truth){
+      let sum=0;
+      picks.forEach((code, idx)=>{
+        const trueIdx = truth.indexOf(code);
+        if (trueIdx>=0){
+          const diff = Math.abs(trueIdx - idx);
+          sum += scoreForDiff(diff);
+        }
+      });
+      return sum;
+    }
+    eastPts = sumFor(parts.East, eastOrder);
+    westPts = sumFor(parts.West, westOrder);
+    total = eastPts + westPts;
+    rows.push({ name, eastPts, westPts, total });
+  });
+
+  rows.sort((a,b)=> b.total - a.total || a.name.localeCompare(b.name));
+
+  // 4) Render
+  const fetchedTxt = standings.fetched_at ? tzFormatter.format(new Date(standings.fetched_at)) : "nu";
+  const tbl = document.createElement('table');
+  tbl.innerHTML = `
+    <thead>
+      <tr><th>#</th><th>Namn</th><th>East</th><th>West</th><th>Total</th></tr>
+    </thead>
+    <tbody>
+      ${rows.map((r,i)=>`
+        <tr>
+          <td>${i+1}</td>
+          <td>${r.name}</td>
+          <td>${r.eastPts>=0?`<span class="pos">+${r.eastPts}</span>`:`<span class="neg">${r.eastPts}</span>`}</td>
+          <td>${r.westPts>=0?`<span class="pos">+${r.westPts}</span>`:`<span class="neg">${r.westPts}</span>`}</td>
+          <td><b>${r.total>=0?`<span class="pos">+${r.total}</span>`:`<span class="neg">${r.total}</span>`}</b></td>
+        </tr>
+      `).join('')}
+    </tbody>
+  `;
+  const small = document.createElement('div');
+  small.className = "hint";
+  small.textContent = `Standings hämtade: ${fetchedTxt}`;
+  container.appendChild(tbl);
+  container.appendChild(small);
+}
+
+/* Init */
+(async function init(){
+  // Namn från localStorage
+  els.name.value = localStorage.getItem('nba_name') || "";
+  els.name.addEventListener('input', sync);
+
+  // Återställ val om det finns lokalt
+  try{
+    const ep = JSON.parse(localStorage.getItem('eastPick')||"[]");
+    const wp = JSON.parse(localStorage.getItem('westPick')||"[]");
+    if (Array.isArray(ep) && ep.length>0){ eastPick = ep; eastPool = T_EAST.map(x=>x[0]).filter(c=>!eastPick.includes(c)); }
+    if (Array.isArray(wp) && wp.length>0){ westPick = wp; westPool = T_WEST.map(x=>x[0]).filter(c=>!westPick.includes(c)); }
+  }catch{}
+
+  // Om namn finns – hämta sparade picks (kan ligga på annan enhet)
+  if (els.name.value.trim()){
+    await loadMyPicks(els.name.value.trim());
+  }
+
+  // Låsning
+  const locked = isLocked();
+  if (locked){
+    els.status.textContent = "Låst – picks går ej att ändra.";
+    document.querySelectorAll('button').forEach(b=>{ if (b.id.startsWith('save')) b.disabled = true; });
+  }else{
+    els.status.textContent = "Öppet – du kan spara/uppdatera dina picks.";
+  }
+
+  renderLists();
+
+  // Leaderboard
+  await renderLeaderboard();
+})();
+
+els.refreshBtn.addEventListener('click', renderLeaderboard);
+
+/* ===========================
+   SUPABASE – TABELL-SCHEMA
+   Kör detta i Supabase SQL Editor (en gång):
+---------------------------------------------
+create table if not exists picks (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  conference text not null check (conference in ('East','West')),
+  season text not null,
+  "order" text[] not null, -- array av lagkoder t.ex. {"ORL","NYK",...}
+  created_at timestamptz default now(),
+  unique (name, conference, season)
+);
+
+-- Öppna för anonym läs/skriv (RLS) men utan att avslöja picks före låsdatum.
+-- Enklast: stäng RLS helt (för hobbybruk). Vill du ha striktare sekretess,
+-- använd RLS och en "lock_date" tabell + policies.
+alter table picks enable row level security;
+drop policy if exists "read_all_after_lock" on picks;
+drop policy if exists "upsert_own_name" on picks;
+
+-- Minimalistisk policy: alla får läsa/skriva allt (enkelt för tävling).
+-- (Vill du hårdlåsa före datum, lämna läs förbjudet och låt klienten dölja UI.)
+create policy "read_all" on picks for select using (true);
+create policy "write_all" on picks for insert with check (true);
+create policy "update_all" on picks for update using (true);
+
+-- (Valfritt) index
+create index if not exists picks_season_idx on picks(season);
+---------------------------------------------
+
+
+/* ===========================
+   SUPABASE EDGE FUNCTION: standings
+   Skapar JSON med East/West-ordning via ESPN-standings (server-side fetch).
+   Deploya i Supabase CLI: supabase functions deploy standings
+---------------------------------------------
+File: supabase/functions/standings/index.ts
+
+// Deno / Edge Function
+// URL att hämta från (ESPN API är offentligt)
+const ESPN = "https://site.api.espn.com/apis/v2/sports/basketball/nba/standings";
+
+function confFromName(name: string){
+  return name.toLowerCase().includes('eastern') ? 'East' : 'West';
+}
+
+// Mappa ESPN team-abbrev → våra koder
+const MAP: Record<string,string> = {
+  BOS:'BOS', BKN:'BKN', NYK:'NYK', PHI:'PHI', TOR:'TOR',
+  CHI:'CHI', CLE:'CLE', DET:'DET', IND:'IND', MIL:'MIL',
+  ATL:'ATL', CHA:'CHA', MIA:'MIA', ORL:'ORL', WAS:'WAS',
+  DEN:'DEN', MIN:'MIN', OKC:'OKC', POR:'POR', UTA:'UTA',
+  GSW:'GSW', LAC:'LAC', LAL:'LAL', PHX:'PHX', SAC:'SAC',
+  DAL:'DAL', HOU:'HOU', MEM:'MEM', NOP:'NOP', SAS:'SAS'
+};
+
+Deno.serve(async (req) => {
+  const url = new URL(req.url);
+  const season = url.searchParams.get("season") ?? "";
+  // ESPN har flera format; detta returnerar aktuell tabell för pågående säsong.
+  const r = await fetch(ESPN);
+  if (!r.ok) return new Response("ESPN fetch fail", { status: 502 });
+  const js = await r.json();
+
+  // js.children[] brukar ha två entries (East/West). Inuti → standings.entries
+  const east: string[] = [];
+  const west: string[] = [];
+
+  try {
+    const children = js.children ?? [];
+    for (const blk of children){
+      const conf = confFromName(blk.name ?? "");
+      const entries = blk.standings?.entries ?? [];
+      // Sorterat redan; plocka team abbrev
+      const arr: string[] = [];
+      for (const e of entries){
+        const abbr = e.team?.abbreviation;
+        const code = MAP[abbr] ?? "";
+        if (code) arr.push(code);
+      }
+      if (conf === 'East') east.push(...arr);
+      if (conf === 'West') west.push(...arr);
+    }
+  } catch (_){}
+
+  // Fallback: om children saknas, prova js.children[0].standings.conferences etc (ESPN ändrar ibland)
+  if (east.length===0 || west.length===0){
+    // Försök annan struktur
+    try{
+      const confs = js.standings?.groups ?? js.standings?.children ?? [];
+      for (const g of confs){
+        const conf = confFromName(g.name ?? "");
+        const entries = g.standings?.entries ?? g.entries ?? [];
+        const arr: string[] = [];
+        for (const e of entries){
+          const abbr = e.team?.abbreviation;
+          const code = MAP[abbr] ?? "";
+          if (code) arr.push(code);
+        }
+        if (conf === 'East' && east.length===0) east.push(...arr);
+        if (conf === 'West' && west.length===0) west.push(...arr);
+      }
+    }catch(_){}
+  }
+
+  const body = {
+    east, west, season, fetched_at: new Date().toISOString()
+  };
+  return new Response(JSON.stringify(body), { headers: { "Content-Type":"application/json" }});
+});
+---------------------------------------------
+*/
+</script>
+</body>
+</html>
