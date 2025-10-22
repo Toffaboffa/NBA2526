@@ -12,7 +12,7 @@
     .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
     .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
     .muted{color:var(--muted);font-size:.92rem}
-    .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 10px;cursor:pointer;margin:6px 6px 0 0;user-select:none}
+    .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 10px;cursor:default;margin:6px 6px 0 0;user-select:none}
     .pill:hover{border-color:#334155}
     .list{display:flex;flex-direction:column;gap:6px;min-height:360px}
     .item{display:flex;align-items:center;gap:8px;border:1px dashed var(--border);border-radius:10px;padding:8px 10px;cursor:pointer}
@@ -37,6 +37,8 @@
     .hint{font-size:.9rem;color:var(--muted)}
     .note{background:#0c1322;border:1px solid var(--border);padding:8px 10px;border-radius:10px}
     .mono{font-family:ui-monospace, Consolas, monospace}
+    /* Deltagare-kortet */
+    .pillwrap{margin-top:8px;display:flex;flex-wrap:wrap}
   </style>
 </head>
 <body>
@@ -59,6 +61,15 @@
     <div class="hint" style="margin-top:8px">
       <b>Låsdatum:</b> <span id="lockInfo"></span> — fram till dess kan du ändra och andras picks förblir dolda.
     </div>
+  </div>
+
+  <!-- Deltagare (alltid synlig) -->
+  <div class="card" style="margin-top:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><b>Deltagare</b> <span class="muted small">(säsong <span id="seasonText"></span>)</span></div>
+      <div class="small"><b id="pCount">0</b> registrerade</div>
+    </div>
+    <div id="pList" class="pillwrap muted small">Laddar…</div>
   </div>
 
   <!-- Tabs East/West -->
@@ -141,6 +152,7 @@ const SUPABASE_URL  = "https://wqrpfhidctlgqnuxqppp.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxcnBmaGlkY3RsZ3FudXhxcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDk5NTgsImV4cCI6MjA3NjcyNTk1OH0.rQiPQSI6YrIGR2GblEjpUi42jNLU0KVAP01vHOwyLgI";
 const LOCK_DATE_ISO = "2025-10-24T18:00:00+02:00";
 const SEASON        = "2025";
+const PARTICIPANTS_POLL_MS = 30000;
 /* ========= SLUT KONFIG ========= */
 
 const sb = supabase.createClient(
@@ -154,6 +166,7 @@ const tzFormatter = new Intl.DateTimeFormat('sv-SE', { dateStyle:'medium', timeS
 const lockDate = new Date(LOCK_DATE_ISO);
 document.getElementById('lockInfo').textContent = tzFormatter.format(lockDate);
 document.getElementById('seasonBadge').textContent = `Säsong ${SEASON}/26`;
+document.getElementById('seasonText').textContent = SEASON;
 
 const T_EAST = [
   ["CLE","Cleveland Cavaliers"],["NYK","New York Knicks"],["ORL","Orlando Magic"],["ATL","Atlanta Hawks"],["MIL","Milwaukee Bucks"],
@@ -175,11 +188,12 @@ function sortedCodesAlpha(list){ return list.slice().sort((a,b)=>a[1].localeComp
 
 /* UI-state */
 let activeTab = "East";
-let eastPool = sortedCodesAlpha(T_EAST); // alfabetisk initialt
-let westPool = sortedCodesAlpha(T_WEST); // alfabetisk initialt
+let eastPool = sortedCodesAlpha(T_EAST);
+let westPool = sortedCodesAlpha(T_WEST);
 let eastPick = [];
 let westPick = [];
 
+/* Elements */
 const els = {
   name: document.getElementById('nameInput'),
   status: document.getElementById('status'),
@@ -196,17 +210,18 @@ const els = {
   tabWest: document.getElementById('tabWest'),
   leaderWrap: document.getElementById('leaderWrap'),
   refreshBtn: document.getElementById('refreshBtn'),
+  pCount: document.getElementById('pCount'),
+  pList: document.getElementById('pList'),
 };
 
 function fmtCount(p){ return `${p.length}/15 valda`; }
 
 /* ======= RENDER ======= */
 function renderLists(){
-  // Håll poolerna alfabetiska vid varje render
   sortPoolAlpha(eastPool);
   sortPoolAlpha(westPool);
 
-  // Pool-listor
+  // Pool
   els.eastPool.innerHTML = "";
   eastPool.forEach(code=>{
     const div = document.createElement('div');
@@ -225,7 +240,7 @@ function renderLists(){
     els.westPool.appendChild(div);
   });
 
-  // Pick-listor
+  // Picks
   els.eastPick.innerHTML = "";
   eastPick.forEach((code,i)=>{
     const div = document.createElement('div');
@@ -277,6 +292,24 @@ function toast(msg, ok=true){
   els.status.innerHTML = ok ? `✅ ${msg}` : `<span class="neg">❌ ${msg}</span>`;
 }
 
+/* ======= DELTAGARE ======= */
+async function renderParticipants(){
+  // Hämta alla namn för säsongen, deduplicera och sortera
+  const { data, error } = await sb.from('picks').select('name').eq('season', SEASON);
+  if (error){
+    console.warn('participants error', error);
+    els.pList.innerHTML = `<span class="muted small">Kunde inte hämta deltagare.</span>`;
+    els.pCount.textContent = '0';
+    return;
+  }
+  const names = Array.from(new Set((data||[]).map(r=>r.name).filter(Boolean)))
+    .sort((a,b)=>a.localeCompare(b, 'sv'));
+  els.pCount.textContent = String(names.length);
+  els.pList.innerHTML = names.length
+    ? names.map(n=>`<span class="pill">${n}</span>`).join('')
+    : `<span class="muted small">Inga registrerade ännu.</span>`;
+}
+
 /* ======= SPARA (RPC) ======= */
 async function savePicks(conf){
   const name = els.name.value.trim();
@@ -289,7 +322,6 @@ async function savePicks(conf){
   const btn = conf==="East" ? els.saveEast : els.saveWest;
   btn.disabled = true;
   toast(`Sparar ${conf}…`);
-  console.log("CLICK", conf, { name, picks });
 
   const { data, error } = await sb.rpc('upsert_pick', {
     p_name: name,
@@ -302,40 +334,16 @@ async function savePicks(conf){
     console.error("RPC error", error);
     toast(`Fel vid sparning (${conf}): ${error.message}`, false);
   }else{
-    console.log("RPC ok", data);
     toast(`Sparat ${conf}.`);
+    // uppdatera deltagare om nytt namn tillkom
+    renderParticipants();
   }
-
-  // återaktivera knapp enligt regler
   btn.disabled = isLocked() || picks.length!==15;
 }
 
+/* Knappkopplingar */
 els.saveEast.addEventListener('click', ()=>savePicks("East"));
 els.saveWest.addEventListener('click', ()=>savePicks("West"));
-
-/* ======= Ladda mina picks ======= */
-async function loadMyPicks(name){
-  const { data, error } = await sb.from('picks')
-    .select('conference,order')
-    .eq('name', name)
-    .eq('season', SEASON);
-
-  if (error){ console.warn(error); return; }
-  if (!data || !data.length) return;
-
-  const eastRow = data.find(r=>r.conference==="East");
-  const westRow = data.find(r=>r.conference==="West");
-
-  if (eastRow && Array.isArray(eastRow.order)){
-    eastPick = [...eastRow.order];
-    eastPool = sortedCodesAlpha(T_EAST).filter(c=>!eastPick.includes(c));
-  }
-  if (westRow && Array.isArray(westRow.order)){
-    westPick = [...westRow.order];
-    westPool = sortedCodesAlpha(T_WEST).filter(c=>!westPick.includes(c));
-  }
-  sync();
-}
 
 /* ======= Poäng ======= */
 function scoreForDiff(diff){
@@ -343,7 +351,7 @@ function scoreForDiff(diff){
   if (diff===1) return 2;
   if (diff===2) return 1;
   if (diff===3) return 0;
-  return -(diff - 3); // 4 -> -1, 5 -> -2, etc
+  return -(diff - 3);
 }
 
 /* ======= Standings via Edge Function ======= */
@@ -441,11 +449,9 @@ async function renderLeaderboard(){
 
 /* ======= Init ======= */
 (async function init(){
-  // namn från localStorage
   els.name.value = localStorage.getItem('nba_name') || "";
   els.name.addEventListener('input', sync);
 
-  // återställ lokala picks
   try{
     const ep = JSON.parse(localStorage.getItem('eastPick')||"[]");
     const wp = JSON.parse(localStorage.getItem('westPick')||"[]");
@@ -453,12 +459,10 @@ async function renderLeaderboard(){
     if (Array.isArray(wp) && wp.length>0){ westPick = wp; westPool = sortedCodesAlpha(T_WEST).filter(c=>!westPick.includes(c)); }
   }catch{}
 
-  // ladda från server om namn finns
   if (els.name.value.trim()){
     await loadMyPicks(els.name.value.trim());
   }
 
-  // låsinfo
   const locked = isLocked();
   if (locked){
     els.status.textContent = "Låst – picks går ej att ändra.";
@@ -468,10 +472,17 @@ async function renderLeaderboard(){
   }
 
   renderLists();
+  await renderParticipants();
   await renderLeaderboard();
+
+  // auto-uppdatera deltagare var 30:e sekund
+  setInterval(renderParticipants, PARTICIPANTS_POLL_MS);
 })();
 
-els.refreshBtn.addEventListener('click', renderLeaderboard);
+els.refreshBtn.addEventListener('click', async ()=>{
+  await renderParticipants();
+  await renderLeaderboard();
+});
 </script>
 </body>
 </html>
