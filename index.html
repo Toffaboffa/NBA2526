@@ -13,7 +13,6 @@
     .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
     .muted{color:var(--muted);font-size:.92rem}
     .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 10px;cursor:default;margin:6px 6px 0 0;user-select:none}
-    .pill:hover{border-color:#334155}
     .list{display:flex;flex-direction:column;gap:6px;min-height:360px}
     .item{display:flex;align-items:center;gap:8px;border:1px dashed var(--border);border-radius:10px;padding:8px 10px;cursor:pointer}
     .item:hover{border-color:#334155}
@@ -28,16 +27,20 @@
     .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .sep{height:1px;background:var(--border);margin:12px 0}
     table{width:100%;border-collapse:collapse}
-    th,td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:.95rem}
+    th,td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:.95rem;white-space:nowrap}
     .neg{color:var(--danger)}
     .pos{color:#34d399}
-    .center{display:flex;align-items:center;justify-content:center}
     .small{font-size:.9rem}
     .badge{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:999px;margin-left:8px}
     .hint{font-size:.9rem;color:var(--muted)}
     .note{background:#0c1322;border:1px solid var(--border);padding:8px 10px;border-radius:10px}
-    .mono{font-family:ui-monospace, Consolas, monospace}
     .pillwrap{margin-top:8px;display:flex;flex-wrap:wrap}
+    .hidden{display:none !important}
+    .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
+    .subtabbar{display:flex;gap:8px;margin:8px 0 10px}
+    .subtab{padding:6px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer}
+    .subtab.active{border-color:var(--accent)}
+    .code{font-family:ui-monospace,Consolas,monospace}
   </style>
 </head>
 <body>
@@ -79,20 +82,20 @@
 
   <!-- East -->
   <div id="tabEast" class="row">
-    <div class="card">
+    <div class="card addCard" id="eastAddCard">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div><b>Välj lag (East)</b></div>
-        <div class="hint">Klicka för att lägga till →</div>
+        <div class="hint addHint">Klicka för att lägga till →</div>
       </div>
       <div id="eastPool" class="list"></div>
     </div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div><b>Din ordning (East)</b></div>
-        <div class="hint">Klicka för att lägga tillbaka ←</div>
+        <div class="hint removeHint">Klicka för att lägga tillbaka ←</div>
       </div>
       <div id="eastPick" class="list"></div>
-      <div class="controls">
+      <div class="controls" id="eastControls">
         <button id="saveEastBtn">Spara East</button>
         <span class="muted small" id="eastCount"></span>
       </div>
@@ -101,20 +104,20 @@
 
   <!-- West -->
   <div id="tabWest" class="row" style="display:none">
-    <div class="card">
+    <div class="card addCard" id="westAddCard">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div><b>Välj lag (West)</b></div>
-        <div class="hint">Klicka för att lägga till →</div>
+        <div class="hint addHint">Klicka för att lägga till →</div>
       </div>
       <div id="westPool" class="list"></div>
     </div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div><b>Din ordning (West)</b></div>
-        <div class="hint">Klicka för att lägga tillbaka ←</div>
+        <div class="hint removeHint">Klicka för att lägga tillbaka ←</div>
       </div>
       <div id="westPick" class="list"></div>
-      <div class="controls">
+      <div class="controls" id="westControls">
         <button id="saveWestBtn">Spara West</button>
         <span class="muted small" id="westCount"></span>
       </div>
@@ -135,6 +138,20 @@
       </div>
     </div>
     <div id="leaderWrap" style="margin-top:10px">
+      <div class="muted">Dolt till låsdatum.</div>
+    </div>
+  </div>
+
+  <!-- ALLAS PICKS -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div><b>Allas picks</b> <span class="hint">(synligt efter låsdatum)</span></div>
+      <div class="subtabbar">
+        <div class="subtab active" data-picks="East" id="picksTabEast">East</div>
+        <div class="subtab" data-picks="West" id="picksTabWest">West</div>
+      </div>
+    </div>
+    <div id="allPicksWrap" class="tableWrap" style="margin-top:8px">
       <div class="muted">Dolt till låsdatum.</div>
     </div>
   </div>
@@ -191,48 +208,74 @@ const els = {
   refreshBtn:document.getElementById('refreshBtn'),
   pCount:document.getElementById('pCount'),
   pList:document.getElementById('pList'),
+  eastAddCard:document.getElementById('eastAddCard'),
+  westAddCard:document.getElementById('westAddCard'),
+  eastControls:document.getElementById('eastControls'),
+  westControls:document.getElementById('westControls'),
+  picksTabEast:document.getElementById('picksTabEast'),
+  picksTabWest:document.getElementById('picksTabWest'),
+  allPicksWrap:document.getElementById('allPicksWrap'),
 };
 
 function fmtCount(p){ return `${p.length}/15 valda`; }
+function isLocked(){ return new Date()>=lockDate; }
 
 /* ----- render lists ----- */
 function renderLists(){
+  const locked=isLocked();
+
+  // Håll poolerna alfabetiska
   sortPoolAlpha(eastPool); sortPoolAlpha(westPool);
+
+  // Pool-kolumner (dölj helt när låst)
+  els.eastAddCard.classList.toggle('hidden', locked);
+  els.westAddCard.classList.toggle('hidden', locked);
+
+  // Pool-rutor
   els.eastPool.innerHTML="";
-  eastPool.forEach(code=>{
-    const d=document.createElement('div'); d.className="item";
-    d.innerHTML=`<span class="idx">+</span> <span>${CODE2NAME[code]}</span>`;
-    d.onclick=()=>{ if(eastPick.length<15){ eastPick.push(code); eastPool=eastPool.filter(c=>c!==code); sync(); } };
-    els.eastPool.appendChild(d);
-  });
   els.westPool.innerHTML="";
-  westPool.forEach(code=>{
-    const d=document.createElement('div'); d.className="item";
-    d.innerHTML=`<span class="idx">+</span> <span>${CODE2NAME[code]}</span>`;
-    d.onclick=()=>{ if(westPick.length<15){ westPick.push(code); westPool=westPool.filter(c=>c!==code); sync(); } };
-    els.westPool.appendChild(d);
-  });
+  if(!locked){
+    eastPool.forEach(code=>{
+      const d=document.createElement('div'); d.className="item";
+      d.innerHTML=`<span class="idx">+</span> <span>${CODE2NAME[code]}</span>`;
+      d.onclick=()=>{ if(eastPick.length<15){ eastPick.push(code); eastPool=eastPool.filter(c=>c!==code); sync(); } };
+      els.eastPool.appendChild(d);
+    });
+    westPool.forEach(code=>{
+      const d=document.createElement('div'); d.className="item";
+      d.innerHTML=`<span class="idx">+</span> <span>${CODE2NAME[code]}</span>`;
+      d.onclick=()=>{ if(westPick.length<15){ westPick.push(code); westPool=westPool.filter(c=>c!==code); sync(); } };
+      els.westPool.appendChild(d);
+    });
+  }
+
+  // Pick-listor (låst = read-only, dvs inga onclicks)
   els.eastPick.innerHTML="";
   eastPick.forEach((code,i)=>{
     const d=document.createElement('div'); d.className="item";
     d.innerHTML=`<span class="idx">${i+1}</span> <span>${CODE2NAME[code]}</span>`;
-    d.onclick=()=>{ eastPick=eastPick.filter((c,idx)=>idx!==i); eastPool.push(code); sync(); };
+    if(!locked){ d.onclick=()=>{ eastPick=eastPick.filter((c,idx)=>idx!==i); eastPool.push(code); sync(); }; }
     els.eastPick.appendChild(d);
   });
   els.westPick.innerHTML="";
   westPick.forEach((code,i)=>{
     const d=document.createElement('div'); d.className="item";
     d.innerHTML=`<span class="idx">${i+1}</span> <span>${CODE2NAME[code]}</span>`;
-    d.onclick=()=>{ westPick=westPick.filter((c,idx)=>idx!==i); westPool.push(code); sync(); };
+    if(!locked){ d.onclick=()=>{ westPick=westPick.filter((c,idx)=>idx!==i); westPool.push(code); sync(); }; }
     els.westPick.appendChild(d);
   });
+
+  // Kontroller
+  els.eastControls.classList.toggle('hidden', locked);
+  els.westControls.classList.toggle('hidden', locked);
+
   els.eastCount.textContent=fmtCount(eastPick);
   els.westCount.textContent=fmtCount(westPick);
-  const locked=isLocked();
+
   els.saveEast.disabled=locked||eastPick.length!==15;
   els.saveWest.disabled=locked||westPick.length!==15;
 }
-function isLocked(){ return new Date()>=lockDate; }
+
 function sync(){
   renderLists();
   localStorage.setItem('nba_name', els.name.value.trim());
@@ -244,14 +287,16 @@ function sync(){
 els.tabs.forEach(t=>{
   t.addEventListener('click', ()=>{
     els.tabs.forEach(x=>x.classList.remove('active')); t.classList.add('active');
-    activeTab=t.dataset.tab; els.tabEast.style.display=activeTab==="East"?"":"none"; els.tabWest.style.display=activeTab==="West"?"":"none";
+    activeTab=t.dataset.tab;
+    els.tabEast.style.display=activeTab==="East"?"":"none";
+    els.tabWest.style.display=activeTab==="West"?"":"none";
   });
 });
 
 /* status */
 function toast(msg, ok=true){ els.status.innerHTML = ok?`✅ ${msg}`:`<span class="neg">❌ ${msg}</span>`; }
 
-/* ---- HÄMTA MINA PICKS (tillagd igen) ---- */
+/* ---- Hämta mina picks ---- */
 async function loadMyPicks(name){
   const { data, error } = await sb.from('picks').select('conference,order').eq('name', name).eq('season', SEASON);
   if (error){ console.warn('loadMyPicks error', error); return; }
@@ -271,23 +316,16 @@ async function loadMyPicks(name){
 
 /* deltagare */
 async function renderParticipants(){
-  // Försök RPC först (bypassar RLS och lämnar bara namn)
   let names = [];
   try {
     const { data, error } = await sb.rpc('list_participants', { p_season: SEASON });
     if (error) throw error;
-    // data är t.ex. [{ name: "Anna" }, { name: "Bertil" }, ...]
     names = (data || []).map(r => r.name).filter(Boolean);
   } catch (e) {
-    console.warn('participants rpc error, fallback to select:', e);
-    // Fallback om RPC inte finns ännu
-    const { data, error } = await sb
-      .from('picks')
-      .select('name')
-      .eq('season', SEASON);
+    // fallback
+    const { data, error } = await sb.from('picks').select('name').eq('season', SEASON);
     if (!error && data) names = Array.from(new Set(data.map(r => r.name).filter(Boolean)));
   }
-
   names.sort((a,b) => a.localeCompare(b, 'sv'));
   els.pCount.textContent = String(names.length);
   els.pList.innerHTML = names.length
@@ -312,22 +350,47 @@ async function savePicks(conf){
 els.saveEast.addEventListener('click', ()=>savePicks("East"));
 els.saveWest.addEventListener('click', ()=>savePicks("West"));
 
-/* poäng + standings + leaderboard (oförändrat) */
+/* poäng + standings + leaderboard */
 function scoreForDiff(diff){ if(diff===0)return 3; if(diff===1)return 2; if(diff===2)return 1; if(diff===3)return 0; return -(diff-3); }
+
 async function fetchStandings(){
   const url=`${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
-  const res=await fetch(url,{ headers:{ "Authorization":`Bearer ${SUPABASE_ANON}` }});
-  if(!res.ok){ const txt=await res.text(); throw new Error("Standings-funktion svarade ej OK: "+txt); }
+  let res;
+  try{
+    res = await fetch(url,{ headers:{ "Authorization":`Bearer ${SUPABASE_ANON}` }});
+  }catch(e){
+    // nätverksfel/”failed to fetch”
+    throw new Error(`Kunde inte nå Edge Function (nätverksfel/CORS?). Kontrollera att funktionen *standings* är deployad och tillåter anon-key. Original: ${e.message}`);
+  }
+  if(!res.ok){
+    const txt=await res.text();
+    throw new Error(`Standings-funktion svarade ej OK (${res.status}). ${txt}`);
+  }
   return res.json();
 }
+
 async function renderLeaderboard(){
   const container=els.leaderWrap; container.innerHTML="";
   if(!isLocked()){ container.innerHTML=`<div class="muted">Dolt till låsdatum.</div>`; return; }
-  let standings; try{ standings=await fetchStandings(); }catch(err){ console.error(err); container.innerHTML=`<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}</div>`; return; }
+  let standings;
+  try{
+    standings=await fetchStandings();
+  }catch(err){
+    console.error(err);
+    container.innerHTML=`<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}
+      <div class="hint" style="margin-top:6px">
+        Tips: Öppna <span class="code">Logs</span> för Edge Function <span class="code">standings</span> i Supabase, och testa ett anrop:
+        <div class="code">curl -H "Authorization: Bearer ${SUPABASE_ANON}" '${SUPABASE_URL}/functions/v1/standings?season=${SEASON}'</div>
+      </div>
+    </div>`;
+    return;
+  }
   const eastOrder=standings.east, westOrder=standings.west;
   if(!Array.isArray(eastOrder)||!Array.isArray(westOrder)){ container.innerHTML=`<div class="note small">Felaktigt standings-svar.</div>`; return; }
+
   const { data, error } = await sb.from('picks').select('name,conference,order').eq('season', SEASON);
   if(error){ container.innerHTML=`<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; return; }
+
   const byName={}; (data||[]).forEach(r=>{ if(!byName[r.name]) byName[r.name]={East:null,West:null}; byName[r.name][r.conference]=r.order; });
   const rows=[];
   Object.entries(byName).forEach(([name,parts])=>{
@@ -349,6 +412,56 @@ async function renderLeaderboard(){
   container.appendChild(tbl); container.appendChild(small);
 }
 
+/* ---- Allas picks-tabellen ---- */
+let allPicksMode = "East"; // "East" | "West"
+
+document.getElementById('picksTabEast').addEventListener('click', ()=>{
+  allPicksMode="East";
+  els.picksTabEast.classList.add('active'); els.picksTabWest.classList.remove('active');
+  renderAllPicks();
+});
+document.getElementById('picksTabWest').addEventListener('click', ()=>{
+  allPicksMode="West";
+  els.picksTabWest.classList.add('active'); els.picksTabEast.classList.remove('active');
+  renderAllPicks();
+});
+
+async function renderAllPicks(){
+  const wrap = els.allPicksWrap;
+  wrap.innerHTML = "";
+  if(!isLocked()){ wrap.innerHTML = `<div class="muted">Dolt till låsdatum.</div>`; return; }
+
+  const { data, error } = await sb.from('picks')
+    .select('name, conference, order')
+    .eq('season', SEASON)
+    .eq('conference', allPicksMode);
+  if(error){ wrap.innerHTML = `<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; return; }
+
+  // Samla namn -> array(15)
+  const byName = {};
+  (data||[]).forEach(r=>{
+    if(!Array.isArray(r.order)) return;
+    byName[r.name] = r.order.slice(0,15);
+  });
+  const names = Object.keys(byName).sort((a,b)=>a.localeCompare(b,'sv'));
+  if(!names.length){ wrap.innerHTML = `<div class="muted">Inga picks sparade för ${allPicksMode}.</div>`; return; }
+
+  // Bygg tabell: Spot + en kolumn per deltagare
+  const spots = Array.from({length:15}, (_,i)=>i+1);
+  const thead = `<thead><tr><th>Spot</th>${names.map(n=>`<th>${n}</th>`).join('')}</tr></thead>`;
+  const tbody = `<tbody>${spots.map(i=>{
+    const row = names.map(n=>{
+      const code = byName[n][i-1];
+      return `<td>${CODE2NAME[code] || code || ''}</td>`;
+    }).join('');
+    return `<tr><td>${i}</td>${row}</tr>`;
+  }).join('')}</tbody>`;
+
+  const tbl = document.createElement('table');
+  tbl.innerHTML = thead + tbody;
+  wrap.appendChild(tbl);
+}
+
 /* init */
 (async function init(){
   els.name.value=localStorage.getItem('nba_name')||"";
@@ -364,17 +477,21 @@ async function renderLeaderboard(){
 
   if(els.name.value.trim()){ await loadMyPicks(els.name.value.trim()); }
 
-  const locked=isLocked();
-  if(locked){ els.status.textContent="Låst – picks går ej att ändra."; document.querySelectorAll('button').forEach(b=>{ if(b.id.startsWith('save')) b.disabled=true; }); }
-  else{ els.status.textContent="Öppet – du kan spara/uppdatera dina picks."; }
+  if(isLocked()){
+    els.status.textContent="Låst – picks går ej att ändra.";
+    // (renderLists döljer/avaktiverar add + kontroller)
+  }else{
+    els.status.textContent="Öppet – du kan spara/uppdatera dina picks.";
+  }
 
   renderLists();
   await renderParticipants();
   await renderLeaderboard();
+  await renderAllPicks();
 
   setInterval(renderParticipants, PARTICIPANTS_POLL_MS);
 })();
-els.refreshBtn.addEventListener('click', async ()=>{ await renderParticipants(); await renderLeaderboard(); });
+els.refreshBtn.addEventListener('click', async ()=>{ await renderParticipants(); await renderLeaderboard(); await renderAllPicks(); });
 </script>
 </body>
 </html>
