@@ -197,6 +197,16 @@ document.getElementById('seasonText').textContent = SEASON;
 const T_EAST = [["CLE","Cleveland Cavaliers"],["NYK","New York Knicks"],["ORL","Orlando Magic"],["ATL","Atlanta Hawks"],["MIL","Milwaukee Bucks"],["DET","Detroit Pistons"],["PHI","Philadelphia 76ers"],["BOS","Boston Celtics"],["IND","Indiana Pacers"],["MIA","Miami Heat"],["TOR","Toronto Raptors"],["CHI","Chicago Bulls"],["CHA","Charlotte Hornets"],["BKN","Brooklyn Nets"],["WAS","Washington Wizards"]];
 const T_WEST = [["OKC","Oklahoma City Thunder"],["GSW","Golden State Warriors"],["HOU","Houston Rockets"],["DEN","Denver Nuggets"],["MIN","Minnesota Timberwolves"],["LAL","Los Angeles Lakers"],["SAS","San Antonio Spurs"],["LAC","Los Angeles Clippers"],["DAL","Dallas Mavericks"],["SAC","Sacramento Kings"],["MEM","Memphis Grizzlies"],["POR","Portland Trail Blazers"],["UTA","Utah Jazz"],["PHX","Phoenix Suns"],["NOP","New Orleans Pelicans"]];
 const CODE2NAME = Object.fromEntries([...T_EAST, ...T_WEST]);
+// Kortnamn för "Allas picks"-tabellen
+const SHORT = {
+  CLE:"Cavs",    NYK:"Knicks",  ORL:"Magic",   ATL:"Hawks",   MIL:"Bucks",
+  DET:"Pistons", PHI:"Sixers",  BOS:"Celtics", IND:"Pacers",  MIA:"Heat",
+  TOR:"Raptors", CHI:"Bulls",   CHA:"Hornets", BKN:"Nets",    WAS:"Wizards",
+
+  OKC:"Thunder", GSW:"Warriors", HOU:"Rockets", DEN:"Nuggets", MIN:"Wolves",
+  LAL:"Lakers",  SAS:"Spurs",    LAC:"Clippers", DAL:"Mavs",   SAC:"Kings",
+  MEM:"Grizz",   POR:"Blazers",  UTA:"Jazz",     PHX:"Suns",   NOP:"Pels"
+};
 function sortPoolAlpha(pool){ pool.sort((a,b)=>CODE2NAME[a].localeCompare(CODE2NAME[b])); }
 function sortedCodesAlpha(list){ return list.slice().sort((a,b)=>a[1].localeCompare(b[1])).map(x=>x[0]); }
 
@@ -447,44 +457,68 @@ document.getElementById('picksTabWest').addEventListener('click', ()=>{ allPicks
 async function renderAllPicks(){
   const wrap = els.allPicksWrap;
   wrap.innerHTML = "";
-  if(!isLocked()){ wrap.innerHTML = `<div class="muted">Dolt till låsdatum.</div>`; return; }
-
-  // Se till att vi har standings (för highlight)
-  if(!latestStandings){
-    try{ latestStandings = await fetchStandings(); }catch{ /* visa ändå utan highlight */ }
+  if(!isLocked()){ 
+    wrap.innerHTML = `<div class="muted">Dolt till låsdatum.</div>`; 
+    return; 
   }
-  const truth = latestStandings ? (allPicksMode==="East" ? latestStandings.east : latestStandings.west) : null;
 
+  // Hämta standings om vi inte redan har (för highlight)
+  if(!latestStandings){
+    try { latestStandings = await fetchStandings(); } catch { /* visa ändå utan highlight */ }
+  }
+  const truth = latestStandings 
+    ? (allPicksMode === "East" ? latestStandings.east : latestStandings.west) 
+    : null;
+
+  // Hämta picks för vald konferens
   const { data, error } = await sb.from('picks')
     .select('name, conference, order')
     .eq('season', SEASON)
     .eq('conference', allPicksMode);
-  if(error){ wrap.innerHTML = `<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; return; }
 
+  if(error){ 
+    wrap.innerHTML = `<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; 
+    return; 
+  }
+
+  // Samla namn -> array(15)
   const byName = {};
-  (data||[]).forEach(r=>{
+  (data || []).forEach(r=>{
     if(!Array.isArray(r.order)) return;
     byName[r.name] = r.order.slice(0,15);
   });
+
   const names = Object.keys(byName).sort((a,b)=>a.localeCompare(b,'sv'));
-  if(!names.length){ wrap.innerHTML = `<div class="muted">Inga picks sparade för ${allPicksMode}.</div>`; return; }
+  if(!names.length){ 
+    wrap.innerHTML = `<div class="muted">Inga picks sparade för ${allPicksMode}.</div>`; 
+    return; 
+  }
 
   const spots = Array.from({length:15}, (_,i)=>i+1);
+
+  // Hjälp: kort namn -> fallback till fullständigt -> code
+  const getName = (code) => {
+    if (typeof SHORT === 'object' && SHORT && SHORT[code]) return SHORT[code];
+    return CODE2NAME[code] || code || '';
+  };
+
   const thead = `<thead><tr><th>Spot</th>${names.map(n=>`<th>${n}</th>`).join('')}</tr></thead>`;
   const tbody = `<tbody>${spots.map(i=>{
     const row = names.map(n=>{
       const code = byName[n][i-1];
-      const name = CODE2NAME[code] || code || '';
+      const label = getName(code);
+
+      // highlight: grön & fet om exakt rätt plats, gul om ±1
       let cls = "";
       if (truth && Array.isArray(truth)) {
-        const realIdx = truth.indexOf(code);        // 0-baserat
+        const realIdx = truth.indexOf(code); // 0-baserat
         if (realIdx >= 0) {
           const diff = Math.abs(realIdx - (i-1));
           if (diff === 0) cls = "cell-hit";
           else if (diff === 1) cls = "cell-near";
         }
       }
-      return `<td class="${cls}">${name}</td>`;
+      return `<td class="${cls}">${label}</td>`;
     }).join('');
     return `<tr><td>${i}</td>${row}</tr>`;
   }).join('')}</tbody>`;
