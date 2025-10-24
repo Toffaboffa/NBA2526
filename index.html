@@ -37,10 +37,17 @@
     .pillwrap{margin-top:8px;display:flex;flex-wrap:wrap}
     .hidden{display:none !important}
     .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
+
+    /* Subtabs */
     .subtabbar{display:flex;gap:8px;margin:8px 0 10px}
     .subtab{padding:6px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer}
     .subtab.active{border-color:var(--accent)}
+
     .code{font-family:ui-monospace,Consolas,monospace}
+
+    /* ==== Allas picks – kompaktare ==== */
+    #allPicksWrap table{font-size:.78rem}
+    #allPicksWrap th,#allPicksWrap td{padding:6px 4px}
   </style>
 </head>
 <body>
@@ -75,7 +82,7 @@
   </div>
 
   <!-- Tabs -->
-  <div class="tabbar">
+  <div class="tabbar" id="confTabs">
     <div class="tab active" data-tab="East">Eastern Conference</div>
     <div class="tab" data-tab="West">Western Conference</div>
   </div>
@@ -215,6 +222,7 @@ const els = {
   picksTabEast:document.getElementById('picksTabEast'),
   picksTabWest:document.getElementById('picksTabWest'),
   allPicksWrap:document.getElementById('allPicksWrap'),
+  confTabs:document.getElementById('confTabs'),
 };
 
 function fmtCount(p){ return `${p.length}/15 valda`; }
@@ -224,14 +232,14 @@ function isLocked(){ return new Date()>=lockDate; }
 function renderLists(){
   const locked=isLocked();
 
-  // Håll poolerna alfabetiska
+  // Sortera alfabetiskt
   sortPoolAlpha(eastPool); sortPoolAlpha(westPool);
 
-  // Pool-kolumner (dölj helt när låst)
+  // Dölj vänster "lägg till lag"-kolumner helt när låst
   els.eastAddCard.classList.toggle('hidden', locked);
   els.westAddCard.classList.toggle('hidden', locked);
 
-  // Pool-rutor
+  // Poolerna (byggs bara om det inte är låst)
   els.eastPool.innerHTML="";
   els.westPool.innerHTML="";
   if(!locked){
@@ -249,7 +257,7 @@ function renderLists(){
     });
   }
 
-  // Pick-listor (låst = read-only, dvs inga onclicks)
+  // Dina listor (read-only när låst)
   els.eastPick.innerHTML="";
   eastPick.forEach((code,i)=>{
     const d=document.createElement('div'); d.className="item";
@@ -265,7 +273,7 @@ function renderLists(){
     els.westPick.appendChild(d);
   });
 
-  // Kontroller
+  // Dölj knappar/controls helt när låst
   els.eastControls.classList.toggle('hidden', locked);
   els.westControls.classList.toggle('hidden', locked);
 
@@ -322,7 +330,6 @@ async function renderParticipants(){
     if (error) throw error;
     names = (data || []).map(r => r.name).filter(Boolean);
   } catch (e) {
-    // fallback
     const { data, error } = await sb.from('picks').select('name').eq('season', SEASON);
     if (!error && data) names = Array.from(new Set(data.map(r => r.name).filter(Boolean)));
   }
@@ -350,23 +357,36 @@ async function savePicks(conf){
 els.saveEast.addEventListener('click', ()=>savePicks("East"));
 els.saveWest.addEventListener('click', ()=>savePicks("West"));
 
-/* poäng + standings + leaderboard */
+/* ===== standings / leaderboard ===== */
 function scoreForDiff(diff){ if(diff===0)return 3; if(diff===1)return 2; if(diff===2)return 1; if(diff===3)return 0; return -(diff-3); }
 
 async function fetchStandings(){
   const url=`${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
-  let res;
+
+  // 1) Försök MED Authorization-header
   try{
-    res = await fetch(url,{ headers:{ "Authorization":`Bearer ${SUPABASE_ANON}` }});
+    const res1 = await fetch(url,{ headers:{ "Authorization":`Bearer ${SUPABASE_ANON}` }, cache:"no-store" });
+    if(res1.ok) return res1.json();
+    if(res1.status===401||res1.status===403){
+      // 2) Försök UTAN Authorization (om funktionen inte kräver JWT)
+      const res2 = await fetch(url,{ cache:"no-store" });
+      if(res2.ok) return res2.json();
+      const txt2 = await res2.text();
+      throw new Error(`Standings ej OK (${res2.status}) utan auth. ${txt2}`);
+    }
+    const txt1 = await res1.text();
+    throw new Error(`Standings ej OK (${res1.status}). ${txt1}`);
   }catch(e){
-    // nätverksfel/”failed to fetch”
-    throw new Error(`Kunde inte nå Edge Function (nätverksfel/CORS?). Kontrollera att funktionen *standings* är deployad och tillåter anon-key. Original: ${e.message}`);
+    // Nätverks/CORS-fel: prova en sista gång utan header (ifall CORS blockar Authorization)
+    try{
+      const res3 = await fetch(url,{ cache:"no-store" });
+      if(res3.ok) return res3.json();
+      const txt3 = await res3.text();
+      throw new Error(`Nätverksfel/CORS. Även utan auth misslyckades (${res3.status}). ${txt3}`);
+    }catch(e2){
+      throw new Error(`Kunde inte nå Edge Function (möjligen CORS). ${e2.message}`);
+    }
   }
-  if(!res.ok){
-    const txt=await res.text();
-    throw new Error(`Standings-funktion svarade ej OK (${res.status}). ${txt}`);
-  }
-  return res.json();
 }
 
 async function renderLeaderboard(){
@@ -379,8 +399,9 @@ async function renderLeaderboard(){
     console.error(err);
     container.innerHTML=`<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}
       <div class="hint" style="margin-top:6px">
-        Tips: Öppna <span class="code">Logs</span> för Edge Function <span class="code">standings</span> i Supabase, och testa ett anrop:
-        <div class="code">curl -H "Authorization: Bearer ${SUPABASE_ANON}" '${SUPABASE_URL}/functions/v1/standings?season=${SEASON}'</div>
+        Test-kommando:
+        <div class="code">curl '${SUPABASE_URL}/functions/v1/standings?season=${SEASON}' -i</div>
+        Om det bara funkar i cURL men inte i webben: lägg till CORS-svar i funktionen (se exempel nedan).
       </div>
     </div>`;
     return;
@@ -437,7 +458,6 @@ async function renderAllPicks(){
     .eq('conference', allPicksMode);
   if(error){ wrap.innerHTML = `<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; return; }
 
-  // Samla namn -> array(15)
   const byName = {};
   (data||[]).forEach(r=>{
     if(!Array.isArray(r.order)) return;
@@ -446,7 +466,6 @@ async function renderAllPicks(){
   const names = Object.keys(byName).sort((a,b)=>a.localeCompare(b,'sv'));
   if(!names.length){ wrap.innerHTML = `<div class="muted">Inga picks sparade för ${allPicksMode}.</div>`; return; }
 
-  // Bygg tabell: Spot + en kolumn per deltagare
   const spots = Array.from({length:15}, (_,i)=>i+1);
   const thead = `<thead><tr><th>Spot</th>${names.map(n=>`<th>${n}</th>`).join('')}</tr></thead>`;
   const tbody = `<tbody>${spots.map(i=>{
@@ -479,7 +498,6 @@ async function renderAllPicks(){
 
   if(isLocked()){
     els.status.textContent="Låst – picks går ej att ändra.";
-    // (renderLists döljer/avaktiverar add + kontroller)
   }else{
     els.status.textContent="Öppet – du kan spara/uppdatera dina picks.";
   }
