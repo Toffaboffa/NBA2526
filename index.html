@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NBA Tips-tävling – Rangordna lag</title>
+  <link rel="icon" href="data:," />
   <style>
     :root{--bg:#0b0f14;--fg:#e7effa;--muted:#94a3b8;--panel:#0f172a;--accent:#22c55e;--danger:#ef4444;--border:#1f2937}
     html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
@@ -239,6 +240,10 @@ function renderLists(){
   els.eastControls.classList.toggle('hidden', locked);
   els.westControls.classList.toggle('hidden', locked);
 
+  // NYTT: dölj hela sektionerna när låst
+  els.tabEast.classList.toggle('hidden', locked);
+  els.tabWest.classList.toggle('hidden', locked);
+
   // Sortera alfabetiskt
   sortPoolAlpha(eastPool); sortPoolAlpha(westPool);
 
@@ -358,9 +363,7 @@ els.saveWest.addEventListener('click', ()=>savePicks("West"));
 function scoreForDiff(diff){ if(diff===0)return 3; if(diff===1)return 2; if(diff===2)return 1; if(diff===3)return 0; return -(diff-3); }
 
 async function fetchStandings(){
-  // Din Edge Function kräver auth (401 “Missing authorization header”).
-  // Vi skickar både Authorization och apikey. Om CORS blockerar headern
-  // måste funktionen tillåta 'authorization' i Access-Control-Allow-Headers.
+  // Skickar Authorization + apikey. Din Edge Function måste tillåta CORS för 'authorization'.
   const url = `${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
   const res = await fetch(url, {
     method: "GET",
