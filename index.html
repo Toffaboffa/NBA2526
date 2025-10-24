@@ -119,6 +119,24 @@
         width:44px; text-align:right; padding-right:8px;
       }
     }
+/* Tighta till East/West på mobil och undvik överlapp */
+@media (max-width:640px){
+  .subtabbar{
+    gap:6px;              /* mindre mellanrum mellan East/West */
+    margin:6px 0 4px;     /* lite mindre vertikal marginal */
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:flex-start;
+  }
+  .subtab{
+    padding:4px 10px;     /* mindre pill-padding */
+    font-size:.90rem;     /* aning mindre text */
+    line-height:1;
+  }
+  #allPicksWrap{          /* liten buffert under pillarna */
+    margin-top:6px;
+  }
+}
 
     /* highlight i Allas picks */
     .cell-hit{font-weight:700;color:#34d399}
