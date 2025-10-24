@@ -519,9 +519,9 @@ async function renderAllPicks(){
     return; 
   }
 
-  // Hämta standings om vi inte redan har (för highlight)
+  // Se till att vi har färska standings för highlight + poäng
   if(!latestStandings){
-    try { latestStandings = await fetchStandings(); } catch { /* visa ändå utan highlight */ }
+    try { latestStandings = await fetchStandings(); } catch { /* fortsätt utan */ }
   }
   const truth = latestStandings 
     ? (allPicksMode === "East" ? latestStandings.east : latestStandings.west) 
@@ -538,11 +538,10 @@ async function renderAllPicks(){
     return; 
   }
 
-  // Samla namn -> array(15)
+  // Namn -> array(15)
   const byName = {};
   (data || []).forEach(r=>{
-    if(!Array.isArray(r.order)) return;
-    byName[r.name] = r.order.slice(0,15);
+    if(Array.isArray(r.order)) byName[r.name] = r.order.slice(0,15);
   });
 
   const names = Object.keys(byName).sort((a,b)=>a.localeCompare(b,'sv'));
@@ -553,29 +552,30 @@ async function renderAllPicks(){
 
   const spots = Array.from({length:15}, (_,i)=>i+1);
 
-  // Hjälp: kort namn -> fallback till fullständigt -> code
-  const getName = (code) => {
-    if (typeof SHORT === 'object' && SHORT && SHORT[code]) return SHORT[code];
-    return CODE2NAME[code] || code || '';
-  };
+  // Kort namn -> fallback
+  const getName = (code) => (SHORT && SHORT[code]) ? SHORT[code] : (CODE2NAME[code] || code || '');
 
   const thead = `<thead><tr><th>Spot</th>${names.map(n=>`<th>${n}</th>`).join('')}</tr></thead>`;
   const tbody = `<tbody>${spots.map(i=>{
     const row = names.map(n=>{
       const code = byName[n][i-1];
-      const label = getName(code);
+      const baseLabel = getName(code);
 
-      // highlight: grön & fet om exakt rätt plats, gul om ±1
+      // highlight + poängsuffix
       let cls = "";
+      let suffix = "";
       if (truth && Array.isArray(truth)) {
-        const realIdx = truth.indexOf(code); // 0-baserat
+        const realIdx = truth.indexOf(code);          // 0-baserat
         if (realIdx >= 0) {
           const diff = Math.abs(realIdx - (i-1));
+          const pts  = scoreForDiff(diff);
           if (diff === 0) cls = "cell-hit";
           else if (diff === 1) cls = "cell-near";
+          if (pts > 0) suffix = ` (+${pts}p)`;
         }
       }
-      return `<td class="${cls}">${label}</td>`;
+
+      return `<td class="${cls}">${baseLabel}${suffix}</td>`;
     }).join('');
     return `<tr><td>${i}</td>${row}</tr>`;
   }).join('')}</tbody>`;
