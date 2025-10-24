@@ -5,57 +5,106 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NBA Tips-tävling – Rangordna lag</title>
   <link rel="icon" href="data:," />
-  <style>
-    :root{
-      --bg:#0b0f14;--fg:#e7effa;--muted:#94a3b8;--panel:#0f172a;--accent:#22c55e;
-      --danger:#ef4444;--border:#1f2937;--warn:#f59e0b;
-    }
-    html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
-    .wrap{max-width:1100px;margin:0 auto;padding:20px}
-    h1{font-size:1.4rem;margin:0 0 8px}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
-    .muted{color:var(--muted);font-size:.92rem}
-    .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 10px;cursor:default;margin:6px 6px 0 0;user-select:none}
-    .list{display:flex;flex-direction:column;gap:6px;min-height:360px}
-    .item{display:flex;align-items:center;gap:8px;border:1px dashed var(--border);border-radius:10px;padding:8px 10px;cursor:pointer}
-    .item:hover{border-color:#334155}
-    .item .idx{width:26px;text-align:center;opacity:.75}
-    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-    input[type="text"]{background:#0b1220;border:1px solid var(--border);color:var(--fg);padding:8px 10px;border-radius:8px;min-width:220px}
-    button{background:var(--accent);border:0;color:#052e12;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
-    button[disabled]{opacity:.5;cursor:not-allowed}
-    .tabbar{display:flex;gap:8px;margin:10px 0 14px}
-    .tab{padding:8px 10px;border:1px solid var(--border);border-radius:10px;cursor:pointer}
-    .tab.active{border-color:var(--accent)}
-    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .sep{height:1px;background:var(--border);margin:12px 0}
-    table{width:100%;border-collapse:collapse}
-    th,td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:.65rem;white-space:nowrap}
-    .neg{color:var(--danger)} .pos{color:#34d399}
-    .small{font-size:.9rem}
-    .badge{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:999px;margin-left:8px}
-    .hint{font-size:.9rem;color:var(--muted)}
-    .note{background:#0c1322;border:1px solid var(--border);padding:8px 10px;border-radius:10px}
-    .pillwrap{margin-top:8px;display:flex;flex-wrap:wrap}
-    .hidden{display:none !important}
-    .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
+ <style>
+  :root{
+    --bg:#0b0f14;--fg:#e7effa;--muted:#94a3b8;--panel:#0f172a;--accent:#22c55e;
+    --danger:#ef4444;--border:#1f2937;--warn:#f59e0b;
+  }
 
-    /* Subtabs */
-    .subtabbar{display:flex;gap:8px;margin:8px 0 10px}
-    .subtab{padding:6px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer}
-    .subtab.active{border-color:var(--accent)}
-    .code{font-family:ui-monospace,Consolas,monospace}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px}
+  h1{font-size:1.4rem;margin:0 0 8px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
+  .muted{color:var(--muted);font-size:.92rem}
+  .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 10px;cursor:default;margin:6px 6px 0 0;user-select:none}
+  .list{display:flex;flex-direction:column;gap:6px;min-height:360px}
+  .item{display:flex;align-items:center;gap:8px;border:1px dashed var(--border);border-radius:10px;padding:8px 10px;cursor:pointer}
+  .item:hover{border-color:#334155}
+  .item .idx{width:26px;text-align:center;opacity:.75}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  input[type="text"]{background:#0b1220;border:1px solid var(--border);color:var(--fg);padding:8px 10px;border-radius:8px;min-width:220px}
+  button{background:var(--accent);border:0;color:#052e12;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
+  button[disabled]{opacity:.5;cursor:not-allowed}
+  .tabbar{display:flex;gap:8px;margin:10px 0 14px}
+  .tab{padding:8px 10px;border:1px solid var(--border);border-radius:10px;cursor:pointer}
+  .tab.active{border-color:var(--accent)}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .sep{height:1px;background:var(--border);margin:12px 0}
 
-    /* ==== Allas picks – ännu kompaktare ==== */
-    #allPicksWrap table{font-size:.20rem; line-height:1.02}
-    #allPicksWrap th,#allPicksWrap td{padding:1px 2px}
-    #allPicksWrap th{position:sticky; top:0; background:#0f172a}
+  /* --- Bas för tabeller --- */
+  table{width:100%;border-collapse:collapse;table-layout:auto}
+  th,td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:.65rem;white-space:nowrap}
+  .neg{color:var(--danger)} .pos{color:#34d399}
+  .small{font-size:.9rem}
+  .badge{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:999px;margin-left:8px}
+  .hint{font-size:.9rem;color:var(--muted)}
+  .note{background:#0c1322;border:1px solid var(--border);padding:8px 10px;border-radius:10px}
+  .pillwrap{margin-top:8px;display:flex;flex-wrap:wrap}
+  .hidden{display:none !important}
+  .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
 
-    /* highlight i Allas picks */
-    .cell-hit{font-weight:700;color:#34d399}
-    .cell-near{color:var(--warn)}
-  </style>
+  /* --- Subtabs --- */
+  .subtabbar{display:flex;gap:8px;margin:8px 0 10px}
+  .subtab{padding:6px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer}
+  .subtab.active{border-color:var(--accent)}
+
+  .code{font-family:ui-monospace,Consolas,monospace}
+
+  /* ============================
+     Leaderboard – kompakt layout
+     ============================ */
+  #leaderWrap table{
+    table-layout:fixed;     /* stabil kolumnbredd */
+    width:100%;
+    font-size:.65rem;       /* behåll din storlek */
+  }
+  #leaderWrap th, #leaderWrap td{
+    padding:4px 6px;        /* tajtare rader */
+    line-height:1.12;
+  }
+  /* # -kolumn */
+  #leaderWrap th:nth-child(1), #leaderWrap td:nth-child(1){
+    width:32px; text-align:right;
+  }
+  /* East/West/Total – smala och centrerade */
+  #leaderWrap th:nth-child(3),
+  #leaderWrap th:nth-child(4),
+  #leaderWrap th:nth-child(5),
+  #leaderWrap td:nth-child(3),
+  #leaderWrap td:nth-child(4),
+  #leaderWrap td:nth-child(5){
+    width:72px; text-align:center;
+  }
+
+  /* =====================================
+     Allas picks – lika breda spelarkolumner
+     ===================================== */
+  #allPicksWrap table{
+    table-layout:fixed;     /* gör alla spelarkolumner lika breda */
+    width:100%;
+    font-size:.20rem;       /* du sa att storleken är bra – behåll den här */
+    line-height:1.02;
+  }
+  #allPicksWrap th, #allPicksWrap td{
+    padding:2px 4px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  #allPicksWrap th{position:sticky; top:0; background:#0f172a}
+  /* smal “Spot”-kolumn */
+  #allPicksWrap th:first-child,
+  #allPicksWrap td:first-child{
+    width:40px;
+    text-align:right;
+    padding-right:6px;
+  }
+
+  /* highlight i Allas picks */
+  .cell-hit{font-weight:700;color:#34d399}
+  .cell-near{color:var(--warn)}
+</style>
 </head>
 <body>
 <div class="wrap">
