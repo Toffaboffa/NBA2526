@@ -5,112 +5,126 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NBA Tips-tävling – Rangordna lag</title>
   <link rel="icon" href="data:," />
- <style>
-  :root{
-    --bg:#0b0f14;--fg:#e7effa;--muted:#94a3b8;--panel:#0f172a;--accent:#22c55e;
-    --danger:#ef4444;--border:#1f2937;--warn:#f59e0b;
-  }
+  <style>
+    :root{
+      --bg:#0b0f14;--fg:#e7effa;--muted:#94a3b8;--panel:#0f172a;--accent:#22c55e;
+      --danger:#ef4444;--border:#1f2937;--warn:#f59e0b;
+    }
 
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
-  .wrap{max-width:1100px;margin:0 auto;padding:20px}
-  h1{font-size:1.4rem;margin:0 0 8px}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
-  .muted{color:var(--muted);font-size:.92rem}
-  .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 10px;cursor:default;margin:6px 6px 0 0;user-select:none}
-  .list{display:flex;flex-direction:column;gap:6px;min-height:360px}
-  .item{display:flex;align-items:center;gap:8px;border:1px dashed var(--border);border-radius:10px;padding:8px 10px;cursor:pointer}
-  .item:hover{border-color:#334155}
-  .item .idx{width:26px;text-align:center;opacity:.75}
-  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-  input[type="text"]{background:#0b1220;border:1px solid var(--border);color:var(--fg);padding:8px 10px;border-radius:8px;min-width:220px}
-  button{background:var(--accent);border:0;color:#052e12;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
-  button[disabled]{opacity:.5;cursor:not-allowed}
-  .tabbar{display:flex;gap:8px;margin:10px 0 14px}
-  .tab{padding:8px 10px;border:1px solid var(--border);border-radius:10px;cursor:pointer}
-  .tab.active{border-color:var(--accent)}
-  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .sep{height:1px;background:var(--border);margin:12px 0}
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    .wrap{max-width:1100px;margin:0 auto;padding:20px}
+    h1{font-size:1.4rem;margin:0 0 8px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
+    .muted{color:var(--muted);font-size:.92rem}
+    .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 10px;cursor:default;margin:6px 6px 0 0;user-select:none}
+    .list{display:flex;flex-direction:column;gap:6px;min-height:360px}
+    .item{display:flex;align-items:center;gap:8px;border:1px dashed var(--border);border-radius:10px;padding:8px 10px;cursor:pointer}
+    .item:hover{border-color:#334155}
+    .item .idx{width:26px;text-align:center;opacity:.75}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    input[type="text"]{background:#0b1220;border:1px solid var(--border);color:var(--fg);padding:8px 10px;border-radius:8px;min-width:220px}
+    button{background:var(--accent);border:0;color:#052e12;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
+    button[disabled]{opacity:.5;cursor:not-allowed}
+    .tabbar{display:flex;gap:8px;margin:10px 0 14px}
+    .tab{padding:8px 10px;border:1px solid var(--border);border-radius:10px;cursor:pointer}
+    .tab.active{border-color:var(--accent)}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .sep{height:1px;background:var(--border);margin:12px 0}
 
-  /* --- Bas för tabeller --- */
-  table{width:100%;border-collapse:collapse;table-layout:auto}
-  th,td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:.85rem;white-space:nowrap}
-  .neg{color:var(--danger)} .pos{color:#34d399}
-  .small{font-size:.9rem}
-  .badge{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:999px;margin-left:8px}
-  .hint{font-size:.9rem;color:var(--muted)}
-  .note{background:#0c1322;border:1px solid var(--border);padding:8px 10px;border-radius:10px}
-  .pillwrap{margin-top:8px;display:flex;flex-wrap:wrap}
-  .hidden{display:none !important}
-  .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
+    /* --- Bas för tabeller --- */
+    table{width:100%;border-collapse:collapse;table-layout:auto}
+    th,td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:.85rem;white-space:nowrap}
+    .neg{color:var(--danger)} .pos{color:#34d399}
+    .small{font-size:.9rem}
+    .badge{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:999px;margin-left:8px}
+    .hint{font-size:.9rem;color:var(--muted)}
+    .note{background:#0c1322;border:1px solid var(--border);padding:8px 10px;border-radius:10px}
+    .pillwrap{margin-top:8px;display:flex;flex-wrap:wrap}
+    .hidden{display:none !important}
+    .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
 
-  /* --- Subtabs --- */
-  .subtabbar{display:flex;gap:8px;margin:8px 0 10px}
-  .subtab{padding:6px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer}
-  .subtab.active{border-color:var(--accent)}
+    /* --- Subtabs --- */
+    .subtabbar{display:flex;gap:8px;margin:8px 0 10px}
+    .subtab{padding:6px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer}
+    .subtab.active{border-color:var(--accent)}
 
-  .code{font-family:ui-monospace,Consolas,monospace}
+    .code{font-family:ui-monospace,Consolas,monospace}
 
-  /* ============================
-     Leaderboard – kompakt layout
-     ============================ */
-  #leaderWrap table{
-    table-layout:fixed;     /* stabil kolumnbredd */
-    width:50%;
-    font-size:.85rem;       /* behåll din storlek */
-  }
-  #leaderWrap th, #leaderWrap td{
-    padding:4px 6px;        /* tajtare rader */
-    line-height:1.12;
-  }
-  /* # -kolumn */
-  #leaderWrap th:nth-child(1), #leaderWrap td:nth-child(1){
-    width:32px; text-align:right;
-  }
-  /* East/West/Total – smala och centrerade */
-  #leaderWrap th:nth-child(3),
-  #leaderWrap th:nth-child(4),
-  #leaderWrap th:nth-child(5),
-  #leaderWrap td:nth-child(3),
-  #leaderWrap td:nth-child(4),
-  #leaderWrap td:nth-child(5){
-    width:72px; text-align:center;
-  }
+    /* ============================
+       Leaderboard – kompakt layout
+       ============================ */
+    #leaderWrap table{
+      table-layout:fixed;
+      width:50%;            /* desktop: smalare tabell */
+      font-size:.95rem;
+    }
+    #leaderWrap th, #leaderWrap td{
+      padding:4px 6px;
+      line-height:1.12;
+    }
+    #leaderWrap th:nth-child(1), #leaderWrap td:nth-child(1){
+      width:32px; text-align:right;
+    }
+    #leaderWrap th:nth-child(3),
+    #leaderWrap th:nth-child(4),
+    #leaderWrap th:nth-child(5),
+    #leaderWrap td:nth-child(3),
+    #leaderWrap td:nth-child(4),
+    #leaderWrap td:nth-child(5){
+      width:72px; text-align:center;
+    }
 
-  /* =====================================
-     Allas picks – lika breda spelarkolumner
-     ===================================== */
-  #allPicksWrap table{
-    table-layout:fixed;     /* gör alla spelarkolumner lika breda */
-    width:100%;
-    font-size:.20rem;       /* du sa att storleken är bra – behåll den här */
-    line-height:1.02;
-  }
-  #allPicksWrap th, #allPicksWrap td{
-    padding:2px 4px;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-  }
-  #allPicksWrap th{position:sticky; top:0; background:#0f172a}
-  /* smal “Spot”-kolumn */
-  #allPicksWrap th:first-child,
-  #allPicksWrap td:first-child{
-    width:40px;
-    text-align:right;
-    padding-right:6px;
-  }
+    /* =====================================
+       Allas picks – desktop kompakt vy
+       ===================================== */
+    @media (min-width:641px){
+      #allPicksWrap table{
+        table-layout:fixed;
+        width:100%;
+        font-size:.20rem;
+        line-height:1.02;
+      }
+      #allPicksWrap th,#allPicksWrap td{
+        padding:2px 4px;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+      #allPicksWrap th{position:sticky; top:0; background:#0f172a}
+      #allPicksWrap th:first-child,#allPicksWrap td:first-child{
+        width:40px; text-align:right; padding-right:6px;
+      }
+    }
 
-  /* highlight i Allas picks */
-  .cell-hit{font-weight:700;color:#34d399}
-  .cell-near{color:var(--warn)}
+    /* ========= Mobil-anpassning ========= */
+    @media (max-width:640px){
+      #leaderWrap table{ width:100%; font-size:.95rem; }
 
-   /* highlight i Allas picks */
-.cell-hit{font-weight:700;color:#34d399}
-.cell-near{color:var(--warn)}
-.cell-zero{color:#94a3b8} /* 0p = ljusgrå */
+      #allPicksWrap .compareControls{ display:block; margin:8px 0 2px; }
+      #allPicksWrap .compareControls .cc-row{ display:flex; gap:8px; }
+      #allPicksWrap .compareControls select{
+        background:#0b1220; border:1px solid var(--border); color:var(--fg);
+        padding:8px 10px; border-radius:10px; flex:1; min-width:0;
+      }
 
-</style>
+      #allPicksWrap table{
+        table-layout:fixed;
+        width:100%;
+        font-size:.95rem;
+        line-height:1.2;
+      }
+      #allPicksWrap th,#allPicksWrap td{ padding:6px 8px; }
+      #allPicksWrap th:first-child,#allPicksWrap td:first-child{
+        width:44px; text-align:right; padding-right:8px;
+      }
+    }
+
+    /* highlight i Allas picks */
+    .cell-hit{font-weight:700;color:#34d399}
+    .cell-near{color:var(--warn)}
+    .cell-zero{color:var(--muted)}
+  </style>
 </head>
 <body>
 <div class="wrap">
@@ -200,8 +214,9 @@
     <div style="display:flex;justify-content:space-between;align-items:end;gap:10px;flex-wrap:wrap;">
       <div>
         <b>Leaderboard</b>
-        <div class="hint">Synlig först efter låsdatum. Poäng per lag: diff 0 → 5, diff 1 → 4, diff 2 → 2, diff 3 → 1, diff 4 → 1, diff ≥ 5 → 0.
-</div>
+        <div class="hint">
+          Synlig först efter låsdatum. Poäng per lag: diff 0 → 5, diff 1 → 4, diff 2 → 2, diff 3 → 1, diff 4 → 1, diff ≥ 5 → 0.
+        </div>
       </div>
       <div>
         <button id="refreshBtn">Hämta aktuella standings & räkna om</button>
@@ -221,6 +236,16 @@
         <div class="subtab" data-picks="West" id="picksTabWest">West</div>
       </div>
     </div>
+
+    <!-- Mobil: jämför två deltagare -->
+    <div id="compareControls" class="compareControls" style="display:none">
+      <div class="muted small">Jämför två deltagare</div>
+      <div class="cc-row">
+        <select id="cmpA"></select>
+        <select id="cmpB"></select>
+      </div>
+    </div>
+
     <div id="allPicksWrap" class="tableWrap" style="margin-top:8px">
       <div class="muted">Dolt till låsdatum.</div>
     </div>
@@ -258,7 +283,6 @@ const SHORT = {
   CLE:"Cavs",    NYK:"Knicks",  ORL:"Magic",   ATL:"Hawks",   MIL:"Bucks",
   DET:"Pistons", PHI:"Sixers",  BOS:"Celtics", IND:"Pacers",  MIA:"Heat",
   TOR:"Raptors", CHI:"Bulls",   CHA:"Hornets", BKN:"Nets",    WAS:"Wizards",
-
   OKC:"Thunder", GSW:"Warriors", HOU:"Rockets", DEN:"Nuggets", MIN:"Wolves",
   LAL:"Lakers",  SAS:"Spurs",    LAC:"Clippers", DAL:"Mavs",   SAC:"Kings",
   MEM:"Grizz",   POR:"Blazers",  UTA:"Jazz",     PHX:"Suns",   NOP:"Pels"
@@ -269,7 +293,7 @@ function sortedCodesAlpha(list){ return list.slice().sort((a,b)=>a[1].localeComp
 let activeTab="East";
 let eastPool=sortedCodesAlpha(T_EAST), westPool=sortedCodesAlpha(T_WEST);
 let eastPick=[], westPick=[];
-let latestStandings = null; // <— cachea standings för highlight
+let latestStandings = null; // cache för highlight/poäng
 
 const els = {
   name:document.getElementById('nameInput'),
@@ -461,7 +485,7 @@ async function renderLeaderboard(){
   let standings;
   try{
     standings=await fetchStandings();
-    latestStandings = standings; // <— spara till Allas picks highlight
+    latestStandings = standings; // spara till Allas picks highlight
   }catch(err){
     console.error(err);
     container.innerHTML=`<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}</div>`;
@@ -493,7 +517,6 @@ async function renderLeaderboard(){
                 hasEast: Array.isArray(parts.East), hasWest: Array.isArray(parts.West) });
   });
 
-  // Sortera på total; vid lika – de med båda sidor först; sen namn
   rows.sort((a,b)=>
     (b.total - a.total) ||
     ((b.hasEast&&b.hasWest)-(a.hasEast&&a.hasWest)) ||
@@ -512,7 +535,28 @@ async function renderLeaderboard(){
   container.appendChild(tbl); container.appendChild(small);
 }
 
-/* ---- Allas picks-tabellen ---- */
+/* ---- Mobil/desktop Allas picks ---- */
+const mobileMQ = window.matchMedia('(max-width: 640px)');
+function isMobile(){ return mobileMQ.matches; }
+
+// Bygg cell med namn + poäng i parentes + klass
+function cellHTML(code, spotIndex, truth, getNameFn){
+  const label = getNameFn(code);
+  let cls = "", ptsTxt = "";
+  if (truth && Array.isArray(truth)) {
+    const realIdx = truth.indexOf(code);
+    if (realIdx >= 0) {
+      const diff = Math.abs(realIdx - (spotIndex-1));
+      const pts  = scoreForDiff(diff);
+      if (diff === 0) cls = "cell-hit";
+      else if (diff === 1) cls = "cell-near";
+      else if (pts === 0) cls = "cell-zero";
+      if (pts > 0) ptsTxt = ` (+${pts}p)`;
+    }
+  }
+  return `<td class="${cls}">${label}${ptsTxt}</td>`;
+}
+
 let allPicksMode = "East";
 document.getElementById('picksTabEast').addEventListener('click', ()=>{ allPicksMode="East"; els.picksTabEast.classList.add('active'); els.picksTabWest.classList.remove('active'); renderAllPicks(); });
 document.getElementById('picksTabWest').addEventListener('click', ()=>{ allPicksMode="West"; els.picksTabWest.classList.add('active'); els.picksTabEast.classList.remove('active'); renderAllPicks(); });
@@ -520,71 +564,94 @@ document.getElementById('picksTabWest').addEventListener('click', ()=>{ allPicks
 async function renderAllPicks(){
   const wrap = els.allPicksWrap;
   wrap.innerHTML = "";
-  if(!isLocked()){ 
-    wrap.innerHTML = `<div class="muted">Dolt till låsdatum.</div>`; 
-    return; 
+  const cmpWrap = document.getElementById('compareControls');
+  const selA    = document.getElementById('cmpA');
+  const selB    = document.getElementById('cmpB');
+
+  if(!isLocked()){
+    wrap.innerHTML = `<div class="muted">Dolt till låsdatum.</div>`;
+    if (cmpWrap) cmpWrap.style.display = 'none';
+    return;
   }
 
-  // Se till att vi har färska standings för highlight + poäng
   if(!latestStandings){
-    try { latestStandings = await fetchStandings(); } catch { /* fortsätt utan */ }
+    try { latestStandings = await fetchStandings(); } catch {}
   }
-  const truth = latestStandings 
-    ? (allPicksMode === "East" ? latestStandings.east : latestStandings.west) 
+  const truth = latestStandings
+    ? (allPicksMode === "East" ? latestStandings.east : latestStandings.west)
     : null;
 
-  // Hämta picks för vald konferens
   const { data, error } = await sb.from('picks')
     .select('name, conference, order')
     .eq('season', SEASON)
     .eq('conference', allPicksMode);
 
-  if(error){ 
-    wrap.innerHTML = `<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; 
-    return; 
+  if(error){
+    wrap.innerHTML = `<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`;
+    if (cmpWrap) cmpWrap.style.display = 'none';
+    return;
   }
 
-  // Namn -> array(15)
   const byName = {};
-  (data || []).forEach(r=>{
-    if(Array.isArray(r.order)) byName[r.name] = r.order.slice(0,15);
-  });
-
+  (data || []).forEach(r=>{ if(Array.isArray(r.order)) byName[r.name] = r.order.slice(0,15); });
   const names = Object.keys(byName).sort((a,b)=>a.localeCompare(b,'sv'));
-  if(!names.length){ 
-    wrap.innerHTML = `<div class="muted">Inga picks sparade för ${allPicksMode}.</div>`; 
-    return; 
+  if(!names.length){
+    wrap.innerHTML = `<div class="muted">Inga picks sparade för ${allPicksMode}.</div>`;
+    if (cmpWrap) cmpWrap.style.display = 'none';
+    return;
   }
 
-  const spots = Array.from({length:15}, (_,i)=>i+1);
-
-  // Kort namn -> fallback
   const getName = (code) => (SHORT && SHORT[code]) ? SHORT[code] : (CODE2NAME[code] || code || '');
 
+  // MOBIL: jämför två
+  if (isMobile()){
+    if (cmpWrap) cmpWrap.style.display = 'block';
+
+    const fillSelect = (sel, value) => {
+      const cur = sel.value;
+      sel.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
+      if (value && names.includes(value)) sel.value = value;
+      else if (names.length) sel.value = names[0];
+      if (selA.value === selB.value && names.length > 1){
+        selB.value = names.find(n => n !== selA.value) || selB.value;
+      }
+      if (cur && names.includes(cur)) sel.value = cur;
+    };
+    fillSelect(selA, selA.value);
+    fillSelect(selB, selB.value);
+
+    const renderCompare = () => {
+      const a = selA.value, b = selB.value;
+      wrap.innerHTML = "";
+      const tbl = document.createElement('table');
+      const thead = `<thead><tr><th>Spot</th><th>${a}</th><th>${b}</th></tr></thead>`;
+      const tbody = `<tbody>${
+        Array.from({length:15},(_,i)=>{
+          const i1 = i+1;
+          const cellA = byName[a] ? cellHTML(byName[a][i], i1, truth, getName) : `<td></td>`;
+          const cellB = byName[b] ? cellHTML(byName[b][i], i1, truth, getName) : `<td></td>`;
+          return `<tr><td>${i1}</td>${cellA}${cellB}</tr>`;
+        }).join('')
+      }</tbody>`;
+      tbl.innerHTML = thead + tbody;
+      wrap.appendChild(tbl);
+    };
+
+    selA.onchange = renderCompare;
+    selB.onchange = renderCompare;
+    renderCompare();
+    return;
+  }
+
+  // DESKTOP: multi-kolumners
+  if (cmpWrap) cmpWrap.style.display = 'none';
+
+  const spots = Array.from({length:15}, (_,i)=>i+1);
   const thead = `<thead><tr><th>Spot</th>${names.map(n=>`<th>${n}</th>`).join('')}</tr></thead>`;
   const tbody = `<tbody>${spots.map(i=>{
     const row = names.map(n=>{
       const code = byName[n][i-1];
-      const baseLabel = getName(code);
-
-      // highlight + poängsuffix
-      let cls = "";
-      let suffix = "";
-      if (truth && Array.isArray(truth)) {
-        const realIdx = truth.indexOf(code);          // 0-baserat
-        if (realIdx >= 0) {
-          const diff = Math.abs(realIdx - (i-1));
-          const pts  = scoreForDiff(diff);
-
-          if (pts === 0) cls = "cell-zero";           // <-- NYTT: 0p = ljusgrå
-          else if (diff === 0) cls = "cell-hit";      // exakt = grön & fet
-          else if (diff === 1) cls = "cell-near";     // ±1 = gul
-
-          if (pts > 0) suffix = ` (+${pts}p)`;        // visa bara text om >0p
-        }
-      }
-
-      return `<td class="${cls}">${baseLabel}${suffix}</td>`;
+      return cellHTML(code, i, truth, getName);
     }).join('');
     return `<tr><td>${i}</td>${row}</tr>`;
   }).join('')}</tbody>`;
@@ -625,7 +692,7 @@ async function renderAllPicks(){
 els.refreshBtn.addEventListener('click', async ()=>{
   await renderParticipants();
   await renderLeaderboard();   // uppdaterar latestStandings
-  await renderAllPicks();      // highlight körs mot senaste standings
+  await renderAllPicks();      // rendera om med senaste standings
 });
 </script>
 </body>
