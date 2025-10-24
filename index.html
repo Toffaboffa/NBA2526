@@ -28,8 +28,7 @@
     .sep{height:1px;background:var(--border);margin:12px 0}
     table{width:100%;border-collapse:collapse}
     th,td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:.95rem;white-space:nowrap}
-    .neg{color:var(--danger)}
-    .pos{color:#34d399}
+    .neg{color:var(--danger)} .pos{color:#34d399}
     .small{font-size:.9rem}
     .badge{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:999px;margin-left:8px}
     .hint{font-size:.9rem;color:var(--muted)}
@@ -45,9 +44,10 @@
 
     .code{font-family:ui-monospace,Consolas,monospace}
 
-    /* ==== Allas picks – kompaktare ==== */
-    #allPicksWrap table{font-size:.78rem}
-    #allPicksWrap th,#allPicksWrap td{padding:6px 4px}
+    /* ==== Allas picks – ännu kompaktare ==== */
+    #allPicksWrap table{font-size:.62rem; line-height:1.05}
+    #allPicksWrap th,#allPicksWrap td{padding:3px 4px}
+    #allPicksWrap th{position:sticky; top:0; background:#0f172a}
   </style>
 </head>
 <body>
@@ -81,7 +81,7 @@
     <div id="pList" class="pillwrap muted small">Laddar…</div>
   </div>
 
-  <!-- Tabs -->
+  <!-- Tabs (döljs automatiskt när låsdatum passerat) -->
   <div class="tabbar" id="confTabs">
     <div class="tab active" data-tab="East">Eastern Conference</div>
     <div class="tab" data-tab="West">Western Conference</div>
@@ -232,16 +232,18 @@ function isLocked(){ return new Date()>=lockDate; }
 function renderLists(){
   const locked=isLocked();
 
+  // Dölj hela tabbar-raden + vänster “Välj lag”-kolumner + kontroller när låst
+  els.confTabs.classList.toggle('hidden', locked);
+  els.eastAddCard.classList.toggle('hidden', locked);
+  els.westAddCard.classList.toggle('hidden', locked);
+  els.eastControls.classList.toggle('hidden', locked);
+  els.westControls.classList.toggle('hidden', locked);
+
   // Sortera alfabetiskt
   sortPoolAlpha(eastPool); sortPoolAlpha(westPool);
 
-  // Dölj vänster "lägg till lag"-kolumner helt när låst
-  els.eastAddCard.classList.toggle('hidden', locked);
-  els.westAddCard.classList.toggle('hidden', locked);
-
-  // Poolerna (byggs bara om det inte är låst)
-  els.eastPool.innerHTML="";
-  els.westPool.innerHTML="";
+  // Poolerna (byggs bara om inte låst)
+  els.eastPool.innerHTML=""; els.westPool.innerHTML="";
   if(!locked){
     eastPool.forEach(code=>{
       const d=document.createElement('div'); d.className="item";
@@ -257,7 +259,7 @@ function renderLists(){
     });
   }
 
-  // Dina listor (read-only när låst)
+  // Dina listor (read-only om låst)
   els.eastPick.innerHTML="";
   eastPick.forEach((code,i)=>{
     const d=document.createElement('div'); d.className="item";
@@ -273,13 +275,8 @@ function renderLists(){
     els.westPick.appendChild(d);
   });
 
-  // Dölj knappar/controls helt när låst
-  els.eastControls.classList.toggle('hidden', locked);
-  els.westControls.classList.toggle('hidden', locked);
-
   els.eastCount.textContent=fmtCount(eastPick);
   els.westCount.textContent=fmtCount(westPick);
-
   els.saveEast.disabled=locked||eastPick.length!==15;
   els.saveWest.disabled=locked||westPick.length!==15;
 }
@@ -349,7 +346,7 @@ async function savePicks(conf){
   if (picks.length!==15){ alert("Du måste välja alla 15 lag."); return; }
   const btn=conf==="East"?els.saveEast:els.saveWest;
   btn.disabled=true; toast(`Sparar ${conf}…`);
-  const { data, error } = await sb.rpc('upsert_pick', { p_name:name, p_conference:conf, p_season:SEASON, p_order:picks });
+  const { error } = await sb.rpc('upsert_pick', { p_name:name, p_conference:conf, p_season:SEASON, p_order:picks });
   if (error){ console.error("RPC error", error); toast(`Fel vid sparning (${conf}): ${error.message}`, false); }
   else { toast(`Sparat ${conf}.`); renderParticipants(); }
   btn.disabled=isLocked()||picks.length!==15;
@@ -361,32 +358,26 @@ els.saveWest.addEventListener('click', ()=>savePicks("West"));
 function scoreForDiff(diff){ if(diff===0)return 3; if(diff===1)return 2; if(diff===2)return 1; if(diff===3)return 0; return -(diff-3); }
 
 async function fetchStandings(){
-  const url=`${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
-
-  // 1) Försök MED Authorization-header
-  try{
-    const res1 = await fetch(url,{ headers:{ "Authorization":`Bearer ${SUPABASE_ANON}` }, cache:"no-store" });
-    if(res1.ok) return res1.json();
-    if(res1.status===401||res1.status===403){
-      // 2) Försök UTAN Authorization (om funktionen inte kräver JWT)
-      const res2 = await fetch(url,{ cache:"no-store" });
-      if(res2.ok) return res2.json();
-      const txt2 = await res2.text();
-      throw new Error(`Standings ej OK (${res2.status}) utan auth. ${txt2}`);
-    }
-    const txt1 = await res1.text();
-    throw new Error(`Standings ej OK (${res1.status}). ${txt1}`);
-  }catch(e){
-    // Nätverks/CORS-fel: prova en sista gång utan header (ifall CORS blockar Authorization)
-    try{
-      const res3 = await fetch(url,{ cache:"no-store" });
-      if(res3.ok) return res3.json();
-      const txt3 = await res3.text();
-      throw new Error(`Nätverksfel/CORS. Även utan auth misslyckades (${res3.status}). ${txt3}`);
-    }catch(e2){
-      throw new Error(`Kunde inte nå Edge Function (möjligen CORS). ${e2.message}`);
-    }
+  // Din Edge Function kräver auth (401 “Missing authorization header”).
+  // Vi skickar både Authorization och apikey. Om CORS blockerar headern
+  // måste funktionen tillåta 'authorization' i Access-Control-Allow-Headers.
+  const url = `${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
+  const res = await fetch(url, {
+    method: "GET",
+    mode: "cors",
+    credentials: "omit",
+    headers: {
+      "Authorization": `Bearer ${SUPABASE_ANON}`,
+      "apikey": SUPABASE_ANON,
+      "Accept": "application/json"
+    },
+    cache: "no-store"
+  });
+  if (!res.ok){
+    const txt = await res.text();
+    throw new Error(`Standings ej OK (${res.status}). ${txt}`);
   }
+  return res.json();
 }
 
 async function renderLeaderboard(){
@@ -399,9 +390,9 @@ async function renderLeaderboard(){
     console.error(err);
     container.innerHTML=`<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}
       <div class="hint" style="margin-top:6px">
-        Test-kommando:
-        <div class="code">curl '${SUPABASE_URL}/functions/v1/standings?season=${SEASON}' -i</div>
-        Om det bara funkar i cURL men inte i webben: lägg till CORS-svar i funktionen (se exempel nedan).
+        Servern säger att Authorization saknas. Lägg till CORS i Edge Function:
+        <div class="code">Access-Control-Allow-Headers: authorization, x-client-info, apikey, content-type</div>
+        och svara på OPTIONS. Testa sedan igen.
       </div>
     </div>`;
     return;
@@ -434,7 +425,7 @@ async function renderLeaderboard(){
 }
 
 /* ---- Allas picks-tabellen ---- */
-let allPicksMode = "East"; // "East" | "West"
+let allPicksMode = "East";
 
 document.getElementById('picksTabEast').addEventListener('click', ()=>{
   allPicksMode="East";
