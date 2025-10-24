@@ -6,7 +6,10 @@
   <title>NBA Tips-tävling – Rangordna lag</title>
   <link rel="icon" href="data:," />
   <style>
-    :root{--bg:#0b0f14;--fg:#e7effa;--muted:#94a3b8;--panel:#0f172a;--accent:#22c55e;--danger:#ef4444;--border:#1f2937}
+    :root{
+      --bg:#0b0f14;--fg:#e7effa;--muted:#94a3b8;--panel:#0f172a;--accent:#22c55e;
+      --danger:#ef4444;--border:#1f2937;--warn:#f59e0b;
+    }
     html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
     .wrap{max-width:1100px;margin:0 auto;padding:20px}
     h1{font-size:1.4rem;margin:0 0 8px}
@@ -42,13 +45,16 @@
     .subtabbar{display:flex;gap:8px;margin:8px 0 10px}
     .subtab{padding:6px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer}
     .subtab.active{border-color:var(--accent)}
-
     .code{font-family:ui-monospace,Consolas,monospace}
 
     /* ==== Allas picks – ännu kompaktare ==== */
-    #allPicksWrap table{font-size:.62rem; line-height:1.05}
-    #allPicksWrap th,#allPicksWrap td{padding:3px 4px}
+    #allPicksWrap table{font-size:.50rem; line-height:1.02}
+    #allPicksWrap th,#allPicksWrap td{padding:2px 3px}
     #allPicksWrap th{position:sticky; top:0; background:#0f172a}
+
+    /* highlight i Allas picks */
+    .cell-hit{font-weight:700;color:#34d399}
+    .cell-near{color:var(--warn)}
   </style>
 </head>
 <body>
@@ -197,6 +203,7 @@ function sortedCodesAlpha(list){ return list.slice().sort((a,b)=>a[1].localeComp
 let activeTab="East";
 let eastPool=sortedCodesAlpha(T_EAST), westPool=sortedCodesAlpha(T_WEST);
 let eastPick=[], westPick=[];
+let latestStandings = null; // <— cachea standings för highlight
 
 const els = {
   name:document.getElementById('nameInput'),
@@ -232,22 +239,16 @@ function isLocked(){ return new Date()>=lockDate; }
 /* ----- render lists ----- */
 function renderLists(){
   const locked=isLocked();
-
-  // Dölj hela tabbar-raden + vänster “Välj lag”-kolumner + kontroller när låst
   els.confTabs.classList.toggle('hidden', locked);
   els.eastAddCard.classList.toggle('hidden', locked);
   els.westAddCard.classList.toggle('hidden', locked);
   els.eastControls.classList.toggle('hidden', locked);
   els.westControls.classList.toggle('hidden', locked);
-
-  // NYTT: dölj hela sektionerna när låst
   els.tabEast.classList.toggle('hidden', locked);
   els.tabWest.classList.toggle('hidden', locked);
 
-  // Sortera alfabetiskt
   sortPoolAlpha(eastPool); sortPoolAlpha(westPool);
 
-  // Poolerna (byggs bara om inte låst)
   els.eastPool.innerHTML=""; els.westPool.innerHTML="";
   if(!locked){
     eastPool.forEach(code=>{
@@ -264,7 +265,6 @@ function renderLists(){
     });
   }
 
-  // Dina listor (read-only om låst)
   els.eastPick.innerHTML="";
   eastPick.forEach((code,i)=>{
     const d=document.createElement('div'); d.className="item";
@@ -363,7 +363,6 @@ els.saveWest.addEventListener('click', ()=>savePicks("West"));
 function scoreForDiff(diff){ if(diff===0)return 3; if(diff===1)return 2; if(diff===2)return 1; if(diff===3)return 0; return -(diff-3); }
 
 async function fetchStandings(){
-  // Skickar Authorization + apikey. Din Edge Function måste tillåta CORS för 'authorization'.
   const url = `${SUPABASE_URL.replace(/\/+$/,'')}/functions/v1/standings?season=${encodeURIComponent(SEASON)}`;
   const res = await fetch(url, {
     method: "GET",
@@ -389,15 +388,10 @@ async function renderLeaderboard(){
   let standings;
   try{
     standings=await fetchStandings();
+    latestStandings = standings; // <— spara till Allas picks highlight
   }catch(err){
     console.error(err);
-    container.innerHTML=`<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}
-      <div class="hint" style="margin-top:6px">
-        Servern säger att Authorization saknas. Lägg till CORS i Edge Function:
-        <div class="code">Access-Control-Allow-Headers: authorization, x-client-info, apikey, content-type</div>
-        och svara på OPTIONS. Testa sedan igen.
-      </div>
-    </div>`;
+    container.innerHTML=`<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}</div>`;
     return;
   }
   const eastOrder=standings.east, westOrder=standings.west;
@@ -406,22 +400,40 @@ async function renderLeaderboard(){
   const { data, error } = await sb.from('picks').select('name,conference,order').eq('season', SEASON);
   if(error){ container.innerHTML=`<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; return; }
 
-  const byName={}; (data||[]).forEach(r=>{ if(!byName[r.name]) byName[r.name]={East:null,West:null}; byName[r.name][r.conference]=r.order; });
+  const byName={}; (data||[]).forEach(r=>{
+    if(!byName[r.name]) byName[r.name]={East:null,West:null};
+    byName[r.name][r.conference]=r.order;
+  });
+
   const rows=[];
   Object.entries(byName).forEach(([name,parts])=>{
-    if(!Array.isArray(parts.East)||!Array.isArray(parts.West)) return;
-    const sumFor=(picks,truth)=>picks.reduce((sum,code,idx)=>{ const t=truth.indexOf(code); return sum+(t>=0?scoreForDiff(Math.abs(t-idx)):0); },0);
-    const eastPts=sumFor(parts.East,eastOrder), westPts=sumFor(parts.West,westOrder);
-    rows.push({ name, eastPts, westPts, total:eastPts+westPts });
+    const sumFor=(picks,truth)=>picks.reduce((sum,code,idx)=>{
+      const t=truth.indexOf(code);
+      return sum+(t>=0?scoreForDiff(Math.abs(t-idx)):0);
+    },0);
+
+    const eastPts = Array.isArray(parts.East) ? sumFor(parts.East, eastOrder) : null;
+    const westPts = Array.isArray(parts.West) ? sumFor(parts.West, westOrder) : null;
+    const total   = (eastPts ?? 0) + (westPts ?? 0);
+
+    rows.push({ name, eastPts, westPts, total,
+                hasEast: Array.isArray(parts.East), hasWest: Array.isArray(parts.West) });
   });
-  rows.sort((a,b)=> b.total-a.total || a.name.localeCompare(b.name));
+
+  // Sortera på total; vid lika – de med båda sidor först; sen namn
+  rows.sort((a,b)=>
+    (b.total - a.total) ||
+    ((b.hasEast&&b.hasWest)-(a.hasEast&&a.hasWest)) ||
+    a.name.localeCompare(b.name,'sv')
+  );
+
   const fetchedTxt=standings.fetched_at?tzFormatter.format(new Date(standings.fetched_at)):"nu";
   const tbl=document.createElement('table');
   tbl.innerHTML=`<thead><tr><th>#</th><th>Namn</th><th>East</th><th>West</th><th>Total</th></tr></thead>
   <tbody>${rows.map((r,i)=>`
     <tr><td>${i+1}</td><td>${r.name}</td>
-    <td>${r.eastPts>=0?`<span class="pos">+${r.eastPts}</span>`:`<span class="neg">${r.eastPts}</span>`}</td>
-    <td>${r.westPts>=0?`<span class="pos">+${r.westPts}</span>`:`<span class="neg">${r.westPts}</span>`}</td>
+    <td>${r.eastPts==null?`–`:(r.eastPts>=0?`<span class="pos">+${r.eastPts}</span>`:`<span class="neg">${r.eastPts}</span>`)}</td>
+    <td>${r.westPts==null?`–`:(r.westPts>=0?`<span class="pos">+${r.westPts}</span>`:`<span class="neg">${r.westPts}</span>`)}</td>
     <td><b>${r.total>=0?`<span class="pos">+${r.total}</span>`:`<span class="neg">${r.total}</span>`}</b></td></tr>`).join('')}</tbody>`;
   const small=document.createElement('div'); small.className="hint"; small.textContent=`Standings hämtade: ${fetchedTxt}`;
   container.appendChild(tbl); container.appendChild(small);
@@ -429,22 +441,19 @@ async function renderLeaderboard(){
 
 /* ---- Allas picks-tabellen ---- */
 let allPicksMode = "East";
-
-document.getElementById('picksTabEast').addEventListener('click', ()=>{
-  allPicksMode="East";
-  els.picksTabEast.classList.add('active'); els.picksTabWest.classList.remove('active');
-  renderAllPicks();
-});
-document.getElementById('picksTabWest').addEventListener('click', ()=>{
-  allPicksMode="West";
-  els.picksTabWest.classList.add('active'); els.picksTabEast.classList.remove('active');
-  renderAllPicks();
-});
+document.getElementById('picksTabEast').addEventListener('click', ()=>{ allPicksMode="East"; els.picksTabEast.classList.add('active'); els.picksTabWest.classList.remove('active'); renderAllPicks(); });
+document.getElementById('picksTabWest').addEventListener('click', ()=>{ allPicksMode="West"; els.picksTabWest.classList.add('active'); els.picksTabEast.classList.remove('active'); renderAllPicks(); });
 
 async function renderAllPicks(){
   const wrap = els.allPicksWrap;
   wrap.innerHTML = "";
   if(!isLocked()){ wrap.innerHTML = `<div class="muted">Dolt till låsdatum.</div>`; return; }
+
+  // Se till att vi har standings (för highlight)
+  if(!latestStandings){
+    try{ latestStandings = await fetchStandings(); }catch{ /* visa ändå utan highlight */ }
+  }
+  const truth = latestStandings ? (allPicksMode==="East" ? latestStandings.east : latestStandings.west) : null;
 
   const { data, error } = await sb.from('picks')
     .select('name, conference, order')
@@ -465,7 +474,17 @@ async function renderAllPicks(){
   const tbody = `<tbody>${spots.map(i=>{
     const row = names.map(n=>{
       const code = byName[n][i-1];
-      return `<td>${CODE2NAME[code] || code || ''}</td>`;
+      const name = CODE2NAME[code] || code || '';
+      let cls = "";
+      if (truth && Array.isArray(truth)) {
+        const realIdx = truth.indexOf(code);        // 0-baserat
+        if (realIdx >= 0) {
+          const diff = Math.abs(realIdx - (i-1));
+          if (diff === 0) cls = "cell-hit";
+          else if (diff === 1) cls = "cell-near";
+        }
+      }
+      return `<td class="${cls}">${name}</td>`;
     }).join('');
     return `<tr><td>${i}</td>${row}</tr>`;
   }).join('')}</tbody>`;
@@ -503,7 +522,11 @@ async function renderAllPicks(){
 
   setInterval(renderParticipants, PARTICIPANTS_POLL_MS);
 })();
-els.refreshBtn.addEventListener('click', async ()=>{ await renderParticipants(); await renderLeaderboard(); await renderAllPicks(); });
+els.refreshBtn.addEventListener('click', async ()=>{
+  await renderParticipants();
+  await renderLeaderboard();   // uppdaterar latestStandings
+  await renderAllPicks();      // highlight körs mot senaste standings
+});
 </script>
 </body>
 </html>
