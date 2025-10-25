@@ -51,42 +51,121 @@
 
     .code{font-family:ui-monospace,Consolas,monospace}
 
-    /* ============================
-       Leaderboard – kompakt layout
-       ============================ */
-    #leaderWrap table{
-      table-layout:fixed;
-      width:100%;
-      font-size:.95rem;
-    }
-    #leaderWrap th, #leaderWrap td{
-      padding:4px 6px;
-      line-height:1.12;
-    }
-    /* kolumn # */
-    #leaderWrap th:nth-child(1), #leaderWrap td:nth-child(1){
-      width:32px; text-align:right;
-    }
-    /* Namn */
-    #leaderWrap th:nth-child(2), #leaderWrap td:nth-child(2){
-      text-align:left;
-      min-width:90px;
-    }
-    /* ΔPlac */
-    #leaderWrap th:nth-child(3), #leaderWrap td:nth-child(3){
-      width:60px; text-align:center;
-    }
-    /* East, West, Total, ΔPoäng */
-    #leaderWrap th:nth-child(4),
-    #leaderWrap th:nth-child(5),
-    #leaderWrap th:nth-child(6),
-    #leaderWrap th:nth-child(7),
-    #leaderWrap td:nth-child(4),
-    #leaderWrap td:nth-child(5),
-    #leaderWrap td:nth-child(6),
-    #leaderWrap td:nth-child(7){
-      width:72px; text-align:center;
-    }
+/* ============================
+   Leaderboard – baslayout
+   ============================ */
+#leaderWrap table{
+  table-layout:fixed;
+  width:100%;
+  font-size:.9rem;
+}
+#leaderWrap th,
+#leaderWrap td{
+  padding:4px 6px;
+  line-height:1.15;
+  border-bottom:1px solid var(--border);
+  text-align:left;
+  white-space:nowrap;
+}
+
+/* kolumn # */
+#leaderWrap th:nth-child(1),
+#leaderWrap td:nth-child(1){
+  width:32px;
+  text-align:right;
+}
+
+/* Namn */
+#leaderWrap th:nth-child(2),
+#leaderWrap td:nth-child(2){
+  min-width:90px;
+  text-align:left;
+}
+
+/* ΔPlac */
+#leaderWrap th:nth-child(3),
+#leaderWrap td:nth-child(3){
+  width:60px;
+  text-align:center;
+}
+
+/* East, West, Total, ΔPoäng */
+#leaderWrap th:nth-child(4),
+#leaderWrap th:nth-child(5),
+#leaderWrap th:nth-child(6),
+#leaderWrap th:nth-child(7),
+#leaderWrap td:nth-child(4),
+#leaderWrap td:nth-child(5),
+#leaderWrap td:nth-child(6),
+#leaderWrap td:nth-child(7){
+  width:72px;
+  text-align:center;
+}
+
+/* ========= Mobil (max 640px) ========= */
+@media (max-width:640px){
+
+  /* mindre text överlag */
+  #leaderWrap table{
+    font-size:.75rem;
+  }
+
+  /* tajtare rader */
+  #leaderWrap th,
+  #leaderWrap td{
+    padding:2px 4px;
+    line-height:1.1;
+  }
+
+  /* låt headern få radbryta så den inte trycks in i nästa kolumn */
+  #leaderWrap th{
+    white-space:normal;
+    font-weight:600;
+  }
+
+  /* men håll värdena på en rad så siffrorna blir clean */
+  #leaderWrap td{
+    white-space:nowrap;
+    font-weight:500;
+  }
+
+  /* # */
+  #leaderWrap th:nth-child(1),
+  #leaderWrap td:nth-child(1){
+    width:24px;
+    text-align:right;
+  }
+
+  /* Namn */
+  #leaderWrap th:nth-child(2),
+  #leaderWrap td:nth-child(2){
+    min-width:60px;
+    max-width:70px;
+    text-align:left;
+  }
+
+  /* ΔPlac */
+  #leaderWrap th:nth-child(3),
+  #leaderWrap td:nth-child(3){
+    width:40px;
+    text-align:center;
+    font-size:.7rem;
+  }
+
+  /* East, West, Total, ΔPoäng */
+  #leaderWrap th:nth-child(4),
+  #leaderWrap th:nth-child(5),
+  #leaderWrap th:nth-child(6),
+  #leaderWrap th:nth-child(7),
+  #leaderWrap td:nth-child(4),
+  #leaderWrap td:nth-child(5),
+  #leaderWrap td:nth-child(6),
+  #leaderWrap td:nth-child(7){
+    width:48px;
+    text-align:center;
+    font-size:.75rem;
+  }
+}
 
     /* =====================================
        Allas picks – desktop kompakt vy
