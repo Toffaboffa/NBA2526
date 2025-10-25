@@ -56,22 +56,35 @@
        ============================ */
     #leaderWrap table{
       table-layout:fixed;
-      width:50%;            /* desktop: smalare tabell */
+      width:100%;
       font-size:.95rem;
     }
     #leaderWrap th, #leaderWrap td{
       padding:4px 6px;
       line-height:1.12;
     }
+    /* kolumn # */
     #leaderWrap th:nth-child(1), #leaderWrap td:nth-child(1){
       width:32px; text-align:right;
     }
-    #leaderWrap th:nth-child(3),
+    /* Namn */
+    #leaderWrap th:nth-child(2), #leaderWrap td:nth-child(2){
+      text-align:left;
+      min-width:90px;
+    }
+    /* ΔPlac */
+    #leaderWrap th:nth-child(3), #leaderWrap td:nth-child(3){
+      width:60px; text-align:center;
+    }
+    /* East, West, Total, ΔPoäng */
     #leaderWrap th:nth-child(4),
     #leaderWrap th:nth-child(5),
-    #leaderWrap td:nth-child(3),
+    #leaderWrap th:nth-child(6),
+    #leaderWrap th:nth-child(7),
     #leaderWrap td:nth-child(4),
-    #leaderWrap td:nth-child(5){
+    #leaderWrap td:nth-child(5),
+    #leaderWrap td:nth-child(6),
+    #leaderWrap td:nth-child(7){
       width:72px; text-align:center;
     }
 
@@ -119,33 +132,108 @@
         width:44px; text-align:right; padding-right:8px;
       }
     }
-/* Tighta till East/West på mobil och undvik överlapp */
-@media (max-width:640px){
-  .subtabbar{
-    gap:6px;              /* mindre mellanrum mellan East/West */
-    margin:6px 0 4px;     /* lite mindre vertikal marginal */
-    flex-wrap:wrap;
-    align-items:center;
-    justify-content:flex-start;
-  }
-  .subtab{
-    padding:4px 10px;     /* mindre pill-padding */
-    font-size:.90rem;     /* aning mindre text */
-    line-height:1;
-  }
-  #allPicksWrap{          /* liten buffert under pillarna */
-    margin-top:6px;
-  }
-}
-@media (max-width:640px){
-  .subtabbar{ position:relative; z-index:1; }
-  #allPicksWrap{ position:relative; z-index:0; }
-}
+    /* Tighta till East/West på mobil och undvik överlapp */
+    @media (max-width:640px){
+      .subtabbar{
+        gap:6px;
+        margin:6px 0 4px;
+        flex-wrap:wrap;
+        align-items:center;
+        justify-content:flex-start;
+      }
+      .subtab{
+        padding:4px 10px;
+        font-size:.90rem;
+        line-height:1;
+      }
+      #allPicksWrap{
+        margin-top:6px;
+      }
+    }
+    @media (max-width:640px){
+      .subtabbar{ position:relative; z-index:1; }
+      #allPicksWrap{ position:relative; z-index:0; }
+    }
 
     /* highlight i Allas picks */
     .cell-hit{font-weight:700;color:#34d399}
     .cell-near{color:var(--warn)}
     .cell-zero{color:var(--muted)}
+
+    /* --- Leaderboard notice + delta-styling --- */
+    .leaderNotice {
+      background:#0c1322;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:6px 8px;
+      font-size:.8rem;
+      color:var(--muted);
+      margin-bottom:8px;
+      line-height:1.3;
+    }
+    .delta-pos { color:#34d399; font-weight:600; }
+    .delta-neg { color:var(--danger); font-weight:600; }
+    .delta-zero { color:var(--muted); font-weight:400; }
+
+    /* --- Modal overlay / standings-popup --- */
+    #standingsModalOverlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.6);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+    }
+    #standingsModal{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      max-width:90vw;
+      max-height:80vh;
+      width:480px;
+      overflow:auto;
+      padding:16px;
+      box-shadow:0 20px 50px rgba(0,0,0,.8);
+      font-size:.9rem;
+      line-height:1.3;
+    }
+    #standingsModal h2{
+      margin:0 0 8px;
+      font-size:1rem;
+    }
+    #standingsModal .closeBtn{
+      float:right;
+      background:#1f2937;
+      color:var(--fg);
+      border:1px solid var(--border);
+      border-radius:8px;
+      font-size:.8rem;
+      padding:4px 8px;
+      cursor:pointer;
+    }
+    #standingsModal table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:.8rem;
+    }
+    #standingsModal th,#standingsModal td{
+      border-bottom:1px solid var(--border);
+      padding:4px 6px;
+      white-space:nowrap;
+      text-align:left;
+    }
+    #standingsModal th:nth-child(1),
+    #standingsModal td:nth-child(1){
+      width:24px;
+      text-align:right;
+    }
+    #standingsModal .confHead{
+      margin-top:12px;
+      font-weight:600;
+      color:var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -240,8 +328,11 @@
           Synlig först efter låsdatum. Poäng per lag: diff 0 → 5, diff 1 → 4, diff 2 → 2, diff 3 → 1, diff 4 → 1, diff ≥ 5 → 0.
         </div>
       </div>
-      <div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
         <button id="refreshBtn">Hämta aktuella standings & räkna om</button>
+        <button id="showStandingsBtn" style="background:#1f2937;color:var(--fg);border:1px solid var(--border);padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer;">
+          Visa nuvarande tabell
+        </button>
       </div>
     </div>
     <div id="leaderWrap" style="margin-top:10px">
@@ -278,6 +369,19 @@
   </div>
 </div>
 
+<!-- Standings popup modal -->
+<div id="standingsModalOverlay">
+  <div id="standingsModal">
+    <button class="closeBtn" id="standingsCloseBtn">Stäng</button>
+    <h2>Aktuella standings</h2>
+    <div class="muted small" id="standingsMeta"></div>
+
+    <div id="standingsTables">
+      <!-- Fylls via JS -->
+    </div>
+  </div>
+</div>
+
 <!-- Supabase JS -->
 <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -300,6 +404,7 @@ document.getElementById('seasonText').textContent = SEASON;
 const T_EAST = [["CLE","Cleveland Cavaliers"],["NYK","New York Knicks"],["ORL","Orlando Magic"],["ATL","Atlanta Hawks"],["MIL","Milwaukee Bucks"],["DET","Detroit Pistons"],["PHI","Philadelphia 76ers"],["BOS","Boston Celtics"],["IND","Indiana Pacers"],["MIA","Miami Heat"],["TOR","Toronto Raptors"],["CHI","Chicago Bulls"],["CHA","Charlotte Hornets"],["BKN","Brooklyn Nets"],["WAS","Washington Wizards"]];
 const T_WEST = [["OKC","Oklahoma City Thunder"],["GSW","Golden State Warriors"],["HOU","Houston Rockets"],["DEN","Denver Nuggets"],["MIN","Minnesota Timberwolves"],["LAL","Los Angeles Lakers"],["SAS","San Antonio Spurs"],["LAC","Los Angeles Clippers"],["DAL","Dallas Mavericks"],["SAC","Sacramento Kings"],["MEM","Memphis Grizzlies"],["POR","Portland Trail Blazers"],["UTA","Utah Jazz"],["PHX","Phoenix Suns"],["NOP","New Orleans Pelicans"]];
 const CODE2NAME = Object.fromEntries([...T_EAST, ...T_WEST]);
+
 // Kortnamn för "Allas picks"-tabellen
 const SHORT = {
   CLE:"Cavs",    NYK:"Knicks",  ORL:"Magic",   ATL:"Hawks",   MIL:"Bucks",
@@ -309,14 +414,18 @@ const SHORT = {
   LAL:"Lakers",  SAS:"Spurs",    LAC:"Clippers", DAL:"Mavs",   SAC:"Kings",
   MEM:"Grizz",   POR:"Blazers",  UTA:"Jazz",     PHX:"Suns",   NOP:"Pels"
 };
+
 function sortPoolAlpha(pool){ pool.sort((a,b)=>CODE2NAME[a].localeCompare(CODE2NAME[b])); }
 function sortedCodesAlpha(list){ return list.slice().sort((a,b)=>a[1].localeCompare(b[1])).map(x=>x[0]); }
 
 let activeTab="East";
 let eastPool=sortedCodesAlpha(T_EAST), westPool=sortedCodesAlpha(T_WEST);
 let eastPick=[], westPick=[];
-let latestStandings = null; // cache för highlight/poäng
 
+// vi cachar senaste standings vi hämtat mot servern
+let latestStandings = null;
+
+// elementrefs
 const els = {
   name:document.getElementById('nameInput'),
   status:document.getElementById('status'),
@@ -333,6 +442,7 @@ const els = {
   tabWest:document.getElementById('tabWest'),
   leaderWrap:document.getElementById('leaderWrap'),
   refreshBtn:document.getElementById('refreshBtn'),
+  showStandingsBtn:document.getElementById('showStandingsBtn'),
   pCount:document.getElementById('pCount'),
   pList:document.getElementById('pList'),
   eastAddCard:document.getElementById('eastAddCard'),
@@ -343,6 +453,13 @@ const els = {
   picksTabWest:document.getElementById('picksTabWest'),
   allPicksWrap:document.getElementById('allPicksWrap'),
   confTabs:document.getElementById('confTabs'),
+  cmpWrap:document.getElementById('compareControls'),
+  cmpA:document.getElementById('cmpA'),
+  cmpB:document.getElementById('cmpB'),
+  standingsModalOverlay:document.getElementById('standingsModalOverlay'),
+  standingsCloseBtn:document.getElementById('standingsCloseBtn'),
+  standingsMeta:document.getElementById('standingsMeta'),
+  standingsTables:document.getElementById('standingsTables'),
 };
 
 function fmtCount(p){ return `${p.length}/15 valda`; }
@@ -501,60 +618,254 @@ async function fetchStandings(){
   return res.json();
 }
 
-async function renderLeaderboard(){
-  const container=els.leaderWrap; container.innerHTML="";
-  if(!isLocked()){ container.innerHTML=`<div class="muted">Dolt till låsdatum.</div>`; return; }
-  let standings;
-  try{
-    standings=await fetchStandings();
-    latestStandings = standings; // spara till Allas picks highlight
-  }catch(err){
-    console.error(err);
-    container.innerHTML=`<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}</div>`;
-    return;
+/* ===== Snapshot-hantering ===== */
+const SNAP_KEY = `leaderSnapshot_${SEASON}`;
+
+/**
+ * Ladda snapshot från localStorage.
+ * returnerar { fetched_at:"...", rows:[ {name,rank,eastPts,westPts,total} ] }
+ */
+function loadSnapshot(){
+  try {
+    const raw = localStorage.getItem(SNAP_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
   }
-  const eastOrder=standings.east, westOrder=standings.west;
-  if(!Array.isArray(eastOrder)||!Array.isArray(westOrder)){ container.innerHTML=`<div class="note small">Felaktigt standings-svar.</div>`; return; }
+}
+function saveSnapshot(snap){
+  localStorage.setItem(SNAP_KEY, JSON.stringify(snap));
+}
 
+/**
+ * Bygg snapshot (poäng + rank) utifrån standingsobjektet.
+ * standings.east / .west kan vara antingen ["BOS","NYK", ...] eller [{code:"BOS",w:..}, ...]
+ */
+async function buildSnapshotFromStandings(standings){
+  const eastOrder = standings.east.map(e => typeof e === "string" ? e : e.code);
+  const westOrder = standings.west.map(w => typeof w === "string" ? w : w.code);
+
+  // hämta alla picks för säsongen
   const { data, error } = await sb.from('picks').select('name,conference,order').eq('season', SEASON);
-  if(error){ container.innerHTML=`<div class="note small">Fel vid hämtning av picks: ${error.message}</div>`; return; }
+  if(error){
+    throw new Error("Fel vid hämtning av picks: " + error.message);
+  }
 
-  const byName={}; (data||[]).forEach(r=>{
+  // name -> {East,West}
+  const byName={};
+  (data||[]).forEach(r=>{
     if(!byName[r.name]) byName[r.name]={East:null,West:null};
     byName[r.name][r.conference]=r.order;
   });
 
-  const rows=[];
-  Object.entries(byName).forEach(([name,parts])=>{
-    const sumFor=(picks,truth)=>picks.reduce((sum,code,idx)=>{
+  function sumFor(picks,truth){
+    if(!Array.isArray(picks)) return 0;
+    return picks.reduce((sum,code,idx)=>{
       const t=truth.indexOf(code);
-      return sum+(t>=0?scoreForDiff(Math.abs(t-idx)):0);
+      if (t<0) return sum;
+      const diff = Math.abs(t-idx);
+      return sum + scoreForDiff(diff);
     },0);
+  }
 
-    const eastPts = Array.isArray(parts.East) ? sumFor(parts.East, eastOrder) : null;
-    const westPts = Array.isArray(parts.West) ? sumFor(parts.West, westOrder) : null;
-    const total   = (eastPts ?? 0) + (westPts ?? 0);
-
-    rows.push({ name, eastPts, westPts, total,
-                hasEast: Array.isArray(parts.East), hasWest: Array.isArray(parts.West) });
+  // gör rådata
+  const tempRows=[];
+  Object.entries(byName).forEach(([name,parts])=>{
+    const eastPts = sumFor(parts.East,eastOrder);
+    const westPts = sumFor(parts.West,westOrder);
+    const total   = eastPts + westPts;
+    tempRows.push({
+      name,
+      eastPts,
+      westPts,
+      total,
+      hasEast: Array.isArray(parts.East),
+      hasWest: Array.isArray(parts.West)
+    });
   });
 
-  rows.sort((a,b)=>
+  // sortera leaderboard
+  tempRows.sort((a,b)=>
     (b.total - a.total) ||
     ((b.hasEast&&b.hasWest)-(a.hasEast&&a.hasWest)) ||
     a.name.localeCompare(b.name,'sv')
   );
 
-  const fetchedTxt=standings.fetched_at?tzFormatter.format(new Date(standings.fetched_at)):"nu";
+  // rank
+  const rowsWithRank = tempRows.map((r,idx)=>({
+    ...r,
+    rank: idx+1
+  }));
+
+  return {
+    fetched_at: standings.fetched_at || new Date().toISOString(),
+    rows: rowsWithRank
+  };
+}
+
+/**
+ * Jämför två snapshots → { namn: { dRank, dPts } }
+ * dRank = hur många placeringar man klättrat (+ är bra)
+ * dPts  = hur många totalpoäng man ökat (+ är bra)
+ */
+function computeDeltas(prevSnap, newSnap){
+  if(!prevSnap) return {};
+  const prevByName={};
+  prevSnap.rows.forEach(r=>{
+    prevByName[r.name]={ rank:r.rank, total:r.total };
+  });
+
+  const deltas={};
+  newSnap.rows.forEach(r=>{
+    const prev = prevByName[r.name];
+    if (!prev){
+      deltas[r.name]={ dRank:0, dPts:0 };
+      return;
+    }
+    const dRankRaw = prev.rank - r.rank;      // ex 5->2 = +3
+    const dPtsRaw  = r.total - prev.total;    // ex 30->36 = +6
+    deltas[r.name]={ dRank:dRankRaw, dPts:dPtsRaw };
+  });
+  return deltas;
+}
+
+function fmtDelta(n){
+  if(n == null) return `<span class="delta-zero">–</span>`;
+  if(n === 0)   return `<span class="delta-zero">0</span>`;
+  if(n > 0)     return `<span class="delta-pos">+${n}</span>`;
+  return `<span class="delta-neg">${n}</span>`;
+}
+
+/** Skriv ut "Tabellen är X dagar gammal." */
+function ageText(iso){
+  if(!iso) return "";
+  const then = new Date(iso).getTime();
+  const now  = Date.now();
+  const diffMs = now-then;
+  const diffDays = Math.floor(diffMs / (1000*60*60*24));
+  if(diffDays <= 0) return "Tabellen är uppdaterad idag.";
+  if(diffDays === 1) return "Tabellen är 1 dag gammal.";
+  return `Tabellen är ${diffDays} dagar gammal.`;
+}
+
+/* ----- renderSnapshotTable ----- */
+function renderSnapshotTable(snap, deltasMap, container, showAgeNotice, fallbackNotice){
+  // snap.rows = [{rank,name,eastPts,westPts,total}...]
+  // deltasMap[name] = {dRank,dPts} eller null
+
+  if(showAgeNotice){
+    const age = ageText(snap.fetched_at);
+    const noteDiv = document.createElement('div');
+    noteDiv.className = "leaderNotice";
+    noteDiv.innerHTML = `
+      <div>${age}</div>
+      <div>Klicka "Hämta aktuella standings & räkna om" för att uppdatera och se förändring.</div>`;
+    container.appendChild(noteDiv);
+  } else if (fallbackNotice){
+    const age = ageText(snap.fetched_at);
+    const warnDiv = document.createElement('div');
+    warnDiv.className = "leaderNotice";
+    warnDiv.innerHTML = `
+      <div>⚠ Kunde inte hämta live standings just nu.</div>
+      <div>${age}</div>`;
+    container.appendChild(warnDiv);
+  }
+
   const tbl=document.createElement('table');
-  tbl.innerHTML=`<thead><tr><th>#</th><th>Namn</th><th>East</th><th>West</th><th>Total</th></tr></thead>
-  <tbody>${rows.map((r,i)=>`
-    <tr><td>${i+1}</td><td>${r.name}</td>
-    <td>${r.eastPts==null?`–`:(r.eastPts>=0?`<span class="pos">+${r.eastPts}</span>`:`<span class="neg">${r.eastPts}</span>`)}</td>
-    <td>${r.westPts==null?`–`:(r.westPts>=0?`<span class="pos">+${r.westPts}</span>`:`<span class="neg">${r.westPts}</span>`)}</td>
-    <td><b>${r.total>=0?`<span class="pos">+${r.total}</span>`:`<span class="neg">${r.total}</span>`}</b></td></tr>`).join('')}</tbody>`;
-  const small=document.createElement('div'); small.className="hint"; small.textContent=`Standings hämtade: ${fetchedTxt}`;
-  container.appendChild(tbl); container.appendChild(small);
+  tbl.innerHTML=`
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Namn</th>
+        <th>ΔPlac</th>
+        <th>East</th>
+        <th>West</th>
+        <th>Total</th>
+        <th>ΔPoäng</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${snap.rows.map(r=>{
+        const d = deltasMap ? deltasMap[r.name] : null;
+        const dRankHtml = d ? fmtDelta(d.dRank) : `<span class="delta-zero">–</span>`;
+        const dPtsHtml  = d ? fmtDelta(d.dPts)  : `<span class="delta-zero">–</span>`;
+
+        return `
+        <tr>
+          <td>${r.rank}</td>
+          <td>${r.name}</td>
+          <td style="text-align:center">${dRankHtml}</td>
+          <td>${r.eastPts>=0?`<span class="pos">+${r.eastPts}</span>`:`<span class="neg">${r.eastPts}</span>`}</td>
+          <td>${r.westPts>=0?`<span class="pos">+${r.westPts}</span>`:`<span class="neg">${r.westPts}</span>`}</td>
+          <td><b>${r.total>=0?`<span class="pos">+${r.total}</span>`:`<span class="neg">${r.total}</span>`}</b></td>
+          <td style="text-align:center">${dPtsHtml}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>`;
+  container.appendChild(tbl);
+
+  const small=document.createElement('div');
+  small.className="hint";
+  small.textContent=`Standings hämtade: ${tzFormatter.format(new Date(snap.fetched_at))}`;
+  container.appendChild(small);
+}
+
+/* ----- renderLeaderboard(forceRecalc) ----- */
+async function renderLeaderboard(forceRecalc=false){
+  const container = els.leaderWrap;
+  container.innerHTML="";
+
+  if(!isLocked()){
+    container.innerHTML=`<div class="muted">Dolt till låsdatum.</div>`;
+    return;
+  }
+
+  // hämta ev sparad snapshot
+  const oldSnap = loadSnapshot();
+
+  // om vi INTE tvingar omräkning och vi har en snapshot, visa den direkt
+  if(!forceRecalc && oldSnap){
+    renderSnapshotTable(oldSnap, null, container, true, false);
+    return;
+  }
+
+  // annars behöver vi färsk standings
+  let standings;
+  try{
+    standings = await fetchStandings();
+    latestStandings = standings; // sparas för allas picks highlight
+  }catch(err){
+    console.error(err);
+    if(oldSnap){
+      container.innerHTML = `
+        <div class="note small"><b>Kunde inte hämta nya standings.</b><br/>
+        Visar senast sparade snapshot istället.</div>`;
+      renderSnapshotTable(oldSnap,null,container,false,true);
+      return;
+    }
+    container.innerHTML=`<div class="note small"><b>Kunde inte hämta standings:</b> ${err.message}</div>`;
+    return;
+  }
+
+  // Bygg ny snapshot av färska standings
+  let newSnap;
+  try{
+    newSnap = await buildSnapshotFromStandings(standings);
+  }catch(err){
+    console.error(err);
+    container.innerHTML=`<div class="note small">Fel vid poängberäkning: ${err.message}</div>`;
+    return;
+  }
+
+  // Beräkna förändring jämfört med tidigare snapshot
+  const deltas = computeDeltas(oldSnap, newSnap);
+
+  // Spara nya snapshot
+  saveSnapshot(newSnap);
+
+  // Rendera snapshot med delta-kolumner
+  renderSnapshotTable(newSnap, deltas, container, false, false);
 }
 
 /* ---- Mobil/desktop Allas picks ---- */
@@ -562,11 +873,11 @@ const mobileMQ = window.matchMedia('(max-width: 640px)');
 function isMobile(){ return mobileMQ.matches; }
 
 // Bygg cell med namn + poäng i parentes + klass
-function cellHTML(code, spotIndex, truth, getNameFn){
+function cellHTML(code, spotIndex, truthCodes, getNameFn){
   const label = getNameFn(code);
   let cls = "", ptsTxt = "";
-  if (truth && Array.isArray(truth)) {
-    const realIdx = truth.indexOf(code);
+  if (truthCodes && Array.isArray(truthCodes)) {
+    const realIdx = truthCodes.indexOf(code);
     if (realIdx >= 0) {
       const diff = Math.abs(realIdx - (spotIndex-1));
       const pts  = scoreForDiff(diff);
@@ -580,15 +891,25 @@ function cellHTML(code, spotIndex, truth, getNameFn){
 }
 
 let allPicksMode = "East";
-document.getElementById('picksTabEast').addEventListener('click', ()=>{ allPicksMode="East"; els.picksTabEast.classList.add('active'); els.picksTabWest.classList.remove('active'); renderAllPicks(); });
-document.getElementById('picksTabWest').addEventListener('click', ()=>{ allPicksMode="West"; els.picksTabWest.classList.add('active'); els.picksTabEast.classList.remove('active'); renderAllPicks(); });
+els.picksTabEast.addEventListener('click', ()=>{
+  allPicksMode="East";
+  els.picksTabEast.classList.add('active');
+  els.picksTabWest.classList.remove('active');
+  renderAllPicks();
+});
+els.picksTabWest.addEventListener('click', ()=>{
+  allPicksMode="West";
+  els.picksTabWest.classList.add('active');
+  els.picksTabEast.classList.remove('active');
+  renderAllPicks();
+});
 
 async function renderAllPicks(){
   const wrap = els.allPicksWrap;
   wrap.innerHTML = "";
-  const cmpWrap = document.getElementById('compareControls');
-  const selA    = document.getElementById('cmpA');
-  const selB    = document.getElementById('cmpB');
+  const cmpWrap = els.cmpWrap;
+  const selA    = els.cmpA;
+  const selB    = els.cmpB;
 
   if(!isLocked()){
     wrap.innerHTML = `<div class="muted">Dolt till låsdatum.</div>`;
@@ -596,13 +917,22 @@ async function renderAllPicks(){
     return;
   }
 
+  // hämta standings om vi inte redan har (för highlight)
   if(!latestStandings){
     try { latestStandings = await fetchStandings(); } catch {}
   }
-  const truth = latestStandings
+
+  // plocka rätt conference från standings
+  const rawTruth = latestStandings
     ? (allPicksMode === "East" ? latestStandings.east : latestStandings.west)
     : null;
 
+  // mappa ev objekt -> code, så vi kan jämföra positioner korrekt
+  const truthCodes = rawTruth
+    ? rawTruth.map(x => typeof x === "string" ? x : x.code)
+    : null;
+
+  // Hämta picks för vald konferens
   const { data, error } = await sb.from('picks')
     .select('name, conference, order')
     .eq('season', SEASON)
@@ -614,8 +944,12 @@ async function renderAllPicks(){
     return;
   }
 
+  // namn -> array(15)
   const byName = {};
-  (data || []).forEach(r=>{ if(Array.isArray(r.order)) byName[r.name] = r.order.slice(0,15); });
+  (data || []).forEach(r=>{
+    if(Array.isArray(r.order)) byName[r.name] = r.order.slice(0,15);
+  });
+
   const names = Object.keys(byName).sort((a,b)=>a.localeCompare(b,'sv'));
   if(!names.length){
     wrap.innerHTML = `<div class="muted">Inga picks sparade för ${allPicksMode}.</div>`;
@@ -650,8 +984,8 @@ async function renderAllPicks(){
       const tbody = `<tbody>${
         Array.from({length:15},(_,i)=>{
           const i1 = i+1;
-          const cellA = byName[a] ? cellHTML(byName[a][i], i1, truth, getName) : `<td></td>`;
-          const cellB = byName[b] ? cellHTML(byName[b][i], i1, truth, getName) : `<td></td>`;
+          const cellA = byName[a] ? cellHTML(byName[a][i], i1, truthCodes, getName) : `<td></td>`;
+          const cellB = byName[b] ? cellHTML(byName[b][i], i1, truthCodes, getName) : `<td></td>`;
           return `<tr><td>${i1}</td>${cellA}${cellB}</tr>`;
         }).join('')
       }</tbody>`;
@@ -665,7 +999,7 @@ async function renderAllPicks(){
     return;
   }
 
-  // DESKTOP: multi-kolumners
+  // DESKTOP: multi-kolumners vy
   if (cmpWrap) cmpWrap.style.display = 'none';
 
   const spots = Array.from({length:15}, (_,i)=>i+1);
@@ -673,7 +1007,7 @@ async function renderAllPicks(){
   const tbody = `<tbody>${spots.map(i=>{
     const row = names.map(n=>{
       const code = byName[n][i-1];
-      return cellHTML(code, i, truth, getName);
+      return cellHTML(code, i, truthCodes, getName);
     }).join('');
     return `<tr><td>${i}</td>${row}</tr>`;
   }).join('')}</tbody>`;
@@ -683,20 +1017,110 @@ async function renderAllPicks(){
   wrap.appendChild(tbl);
 }
 
-/* init */
+/* ===== Modal standings ===== */
+async function openStandingsModal(){
+  // Försök hämta färsk standings nu (utan att röra snapshot)
+  let standings;
+  try{
+    standings = await fetchStandings();
+    latestStandings = standings; // nice bonus
+  }catch(err){
+    console.error(err);
+    standings = null;
+  }
+
+  if(!standings){
+    els.standingsMeta.textContent = "Kunde inte hämta standings just nu.";
+    els.standingsTables.innerHTML = "";
+    els.standingsModalOverlay.style.display='flex';
+    return;
+  }
+
+  els.standingsMeta.textContent =
+    `Senast uppdaterad: ${tzFormatter.format(new Date(standings.fetched_at||Date.now()))}`;
+
+  function renderConf(confName, arr){
+    // arr kan vara ["BOS","NYK", ...] ELLER [{code:"BOS",w:1,l:0,pct:1.000}, ...]
+    const rowsHtml = arr.map((row,idx)=>{
+      if(typeof row === "string"){
+        const code=row;
+        const teamName = SHORT[code] || CODE2NAME[code] || code;
+        return `<tr>
+          <td>${idx+1}</td>
+          <td>${teamName}</td>
+          <td>-</td><td>-</td><td>-</td>
+        </tr>`;
+      } else {
+        const code = row.code;
+        const teamName = SHORT[code] || CODE2NAME[code] || code;
+        const pct = (row.pct != null) ? ((row.pct*100).toFixed(1)+"%") : "-";
+        return `<tr>
+          <td>${idx+1}</td>
+          <td>${teamName}</td>
+          <td>${row.w ?? "-"}</td>
+          <td>${row.l ?? "-"}</td>
+          <td>${pct}</td>
+        </tr>`;
+      }
+    }).join("");
+
+    return `
+      <div class="confHead">${confName}</div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Lag</th>
+            <th>W</th>
+            <th>L</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    `;
+  }
+
+  els.standingsTables.innerHTML =
+    renderConf("East", standings.east) +
+    renderConf("West", standings.west);
+
+  els.standingsModalOverlay.style.display='flex';
+}
+function closeStandingsModal(){
+  els.standingsModalOverlay.style.display='none';
+}
+els.showStandingsBtn.addEventListener('click', openStandingsModal);
+els.standingsCloseBtn.addEventListener('click', closeStandingsModal);
+els.standingsModalOverlay.addEventListener('click', (e)=>{
+  if(e.target.id==="standingsModalOverlay") closeStandingsModal();
+});
+
+/* ===== init ===== */
 (async function init(){
   els.name.value=localStorage.getItem('nba_name')||"";
   els.name.addEventListener('input', sync);
-  els.name.addEventListener('change', async ()=>{ const n=els.name.value.trim(); if(n) await loadMyPicks(n); });
+  els.name.addEventListener('change', async ()=>{
+    const n=els.name.value.trim();
+    if(n) await loadMyPicks(n);
+  });
 
   try{
     const ep=JSON.parse(localStorage.getItem('eastPick')||"[]");
     const wp=JSON.parse(localStorage.getItem('westPick')||"[]");
-    if(Array.isArray(ep)&&ep.length>0){ eastPick=ep; eastPool=sortedCodesAlpha(T_EAST).filter(c=>!eastPick.includes(c)); }
-    if(Array.isArray(wp)&&wp.length>0){ westPick=wp; westPool=sortedCodesAlpha(T_WEST).filter(c=>!westPick.includes(c)); }
+    if(Array.isArray(ep)&&ep.length>0){
+      eastPick=ep;
+      eastPool=sortedCodesAlpha(T_EAST).filter(c=>!eastPick.includes(c));
+    }
+    if(Array.isArray(wp)&&wp.length>0){
+      westPick=wp;
+      westPool=sortedCodesAlpha(T_WEST).filter(c=>!westPick.includes(c));
+    }
   }catch{}
 
-  if(els.name.value.trim()){ await loadMyPicks(els.name.value.trim()); }
+  if(els.name.value.trim()){
+    await loadMyPicks(els.name.value.trim());
+  }
 
   if(isLocked()){
     els.status.textContent="Låst – picks går ej att ändra.";
@@ -706,15 +1130,20 @@ async function renderAllPicks(){
 
   renderLists();
   await renderParticipants();
-  await renderLeaderboard();
+
+  // visa snapshot om vi har, annars gör vi första calc (forceRecalc=false)
+  await renderLeaderboard(false);
+
   await renderAllPicks();
 
   setInterval(renderParticipants, PARTICIPANTS_POLL_MS);
 })();
+
+/* ===== uppdatera-knappen (forceRecalc=true) ===== */
 els.refreshBtn.addEventListener('click', async ()=>{
   await renderParticipants();
-  await renderLeaderboard();   // uppdaterar latestStandings
-  await renderAllPicks();      // rendera om med senaste standings
+  await renderLeaderboard(true);   // hämta live standings, jämför, spara snapshot
+  await renderAllPicks();          // highlight + poäng i tabellen
 });
 </script>
 </body>
