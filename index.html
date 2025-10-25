@@ -52,7 +52,7 @@
     .code{font-family:ui-monospace,Consolas,monospace}
 
 /* ============================
-   Leaderboard – baslayout
+   Leaderboard – baslayout (desktop / bred skärm)
    ============================ */
 #leaderWrap table{
   table-layout:fixed;
@@ -105,12 +105,13 @@
 /* ========= Mobil (max-width:640px) ========= */
 @media (max-width:640px){
 
-  /* mindre text överlag */
+  /* Viktigt: auto-layout på mobil så våra width/min/max kickar in */
   #leaderWrap table{
-    font-size:.75rem;
+    table-layout:auto;
+    width:100%;
+    font-size:.72rem;  /* ännu lite mindre */
   }
 
-  /* tajtare rader */
   #leaderWrap th,
   #leaderWrap td{
     padding:2px 4px;
@@ -118,56 +119,72 @@
     border-bottom:1px solid var(--border);
   }
 
-  /* låt headern få radbryta så den inte trycks in i nästa kolumn */
+  /* rubriker (th) får bryta rad, värden (td) hålls på en rad */
   #leaderWrap th{
     white-space:normal;
     font-weight:600;
+    font-size:.7rem;
   }
-
-  /* men håll värdena (td) på EN rad så siffrorna blir clean */
   #leaderWrap td{
     white-space:nowrap;
     font-weight:500;
+    font-size:.72rem;
   }
 
   /* ===== kolumn # (placering) ===== */
   #leaderWrap th:nth-child(1),
   #leaderWrap td:nth-child(1){
-    width:28px;                 /* lite bredare än 24px */
+    width:28px;
+    min-width:28px;
+    max-width:28px;
     text-align:right;
-    padding-right:6px;          /* luft till höger */
-    border-right:1px solid var(--border);  /* vertikal linje mellan # och Namn */
+    padding-right:6px;
+    border-right:1px solid var(--border); /* lodrät separator */
   }
 
   /* ===== kolumn Namn ===== */
   #leaderWrap th:nth-child(2),
   #leaderWrap td:nth-child(2){
-    min-width:60px;
-    max-width:70px;
+    max-width:80px;            /* ge namnet egen smal kolumn */
+    width:80px;
+    padding-left:6px;          /* luft från separator-linjen */
     text-align:left;
-    padding-left:6px;           /* luft från den vertikala linjen */
+    overflow:hidden;
+    text-overflow:ellipsis;    /* om "Franzén" eller nåt blir för långt */
   }
 
   /* ===== kolumn ΔPlac ===== */
   #leaderWrap th:nth-child(3),
   #leaderWrap td:nth-child(3){
-    width:40px;
+    width:38px;
+    min-width:38px;
+    max-width:38px;
+    text-align:center;
+    font-size:.65rem;
+  }
+
+  /* ===== East, West, Total ===== */
+  #leaderWrap th:nth-child(4),
+  #leaderWrap th:nth-child(5),
+  #leaderWrap th:nth-child(6),
+  #leaderWrap td:nth-child(4),
+  #leaderWrap td:nth-child(5),
+  #leaderWrap td:nth-child(6){
+    width:46px;
+    min-width:46px;
+    max-width:46px;
     text-align:center;
     font-size:.7rem;
   }
 
-  /* ===== East, West, Total, ΔPoäng ===== */
-  #leaderWrap th:nth-child(4),
-  #leaderWrap th:nth-child(5),
-  #leaderWrap th:nth-child(6),
+  /* ===== ΔPoäng (sista kolumnen) ===== */
   #leaderWrap th:nth-child(7),
-  #leaderWrap td:nth-child(4),
-  #leaderWrap td:nth-child(5),
-  #leaderWrap td:nth-child(6),
   #leaderWrap td:nth-child(7){
-    width:48px;
+    width:50px;
+    min-width:50px;
+    max-width:50px;
     text-align:center;
-    font-size:.75rem;
+    font-size:.7rem;
   }
 }
 
