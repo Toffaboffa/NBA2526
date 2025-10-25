@@ -105,16 +105,16 @@
 /* ========= Mobil (max-width:640px) ========= */
 @media (max-width:640px){
 
-  /* Viktigt: auto-layout på mobil så våra width/min/max kickar in */
+  /* Viktigt: auto-layout så våra min/max-width gäller */
   #leaderWrap table{
     table-layout:auto;
     width:100%;
-    font-size:.72rem;  /* ännu lite mindre */
+    font-size:.72rem;
   }
 
   #leaderWrap th,
   #leaderWrap td{
-    padding:2px 4px;
+    padding:2px 3px;          /* ännu lite tajtare horisontellt */
     line-height:1.1;
     border-bottom:1px solid var(--border);
   }
@@ -134,57 +134,64 @@
   /* ===== kolumn # (placering) ===== */
   #leaderWrap th:nth-child(1),
   #leaderWrap td:nth-child(1){
-    width:28px;
-    min-width:28px;
-    max-width:28px;
+    width:26px;
+    min-width:26px;
+    max-width:26px;
     text-align:right;
-    padding-right:6px;
-    border-right:1px solid var(--border); /* lodrät separator */
+    padding-left:2px;
+    padding-right:4px;
+    border-right:1px solid var(--border); /* lodrät separator mot Namn */
   }
 
   /* ===== kolumn Namn ===== */
   #leaderWrap th:nth-child(2),
   #leaderWrap td:nth-child(2){
-    max-width:80px;            /* ge namnet egen smal kolumn */
-    width:80px;
-    padding-left:6px;          /* luft från separator-linjen */
+    width:70px;
+    min-width:70px;
+    max-width:70px;
     text-align:left;
+    padding-left:6px;   /* lite luft efter separatorn */
+    padding-right:3px;
     overflow:hidden;
-    text-overflow:ellipsis;    /* om "Franzén" eller nåt blir för långt */
+    text-overflow:ellipsis; /* klipp långa namn med … */
   }
 
   /* ===== kolumn ΔPlac ===== */
   #leaderWrap th:nth-child(3),
   #leaderWrap td:nth-child(3){
-    width:38px;
-    min-width:38px;
-    max-width:38px;
+    width:34px;
+    min-width:34px;
+    max-width:34px;
     text-align:center;
     font-size:.65rem;
   }
 
   /* ===== East, West, Total ===== */
   #leaderWrap th:nth-child(4),
-  #leaderWrap th:nth-child(5),
-  #leaderWrap th:nth-child(6),
   #leaderWrap td:nth-child(4),
+  #leaderWrap th:nth-child(5),
   #leaderWrap td:nth-child(5),
+  #leaderWrap th:nth-child(6),
   #leaderWrap td:nth-child(6){
+    width:42px;
+    min-width:42px;
+    max-width:42px;
+    text-align:center;
+    font-size:.7rem;
+    padding-left:2px;
+    padding-right:2px;
+  }
+
+  /* ===== ΔPoäng ===== */
+  #leaderWrap th:nth-child(7),
+  #leaderWrap td:nth-child(7){
     width:46px;
     min-width:46px;
     max-width:46px;
     text-align:center;
     font-size:.7rem;
-  }
-
-  /* ===== ΔPoäng (sista kolumnen) ===== */
-  #leaderWrap th:nth-child(7),
-  #leaderWrap td:nth-child(7){
-    width:50px;
-    min-width:50px;
-    max-width:50px;
-    text-align:center;
-    font-size:.7rem;
+    padding-left:2px;
+    padding-right:2px;
   }
 }
 
