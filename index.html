@@ -102,7 +102,7 @@
   text-align:center;
 }
 
-/* ========= Mobil (max 640px) ========= */
+/* ========= Mobil (max-width:640px) ========= */
 @media (max-width:640px){
 
   /* mindre text överlag */
@@ -115,6 +115,7 @@
   #leaderWrap td{
     padding:2px 4px;
     line-height:1.1;
+    border-bottom:1px solid var(--border);
   }
 
   /* låt headern få radbryta så den inte trycks in i nästa kolumn */
@@ -123,28 +124,31 @@
     font-weight:600;
   }
 
-  /* men håll värdena på en rad så siffrorna blir clean */
+  /* men håll värdena (td) på EN rad så siffrorna blir clean */
   #leaderWrap td{
     white-space:nowrap;
     font-weight:500;
   }
 
-  /* # */
+  /* ===== kolumn # (placering) ===== */
   #leaderWrap th:nth-child(1),
   #leaderWrap td:nth-child(1){
-    width:24px;
+    width:28px;                 /* lite bredare än 24px */
     text-align:right;
+    padding-right:6px;          /* luft till höger */
+    border-right:1px solid var(--border);  /* vertikal linje mellan # och Namn */
   }
 
-  /* Namn */
+  /* ===== kolumn Namn ===== */
   #leaderWrap th:nth-child(2),
   #leaderWrap td:nth-child(2){
     min-width:60px;
     max-width:70px;
     text-align:left;
+    padding-left:6px;           /* luft från den vertikala linjen */
   }
 
-  /* ΔPlac */
+  /* ===== kolumn ΔPlac ===== */
   #leaderWrap th:nth-child(3),
   #leaderWrap td:nth-child(3){
     width:40px;
@@ -152,7 +156,7 @@
     font-size:.7rem;
   }
 
-  /* East, West, Total, ΔPoäng */
+  /* ===== East, West, Total, ΔPoäng ===== */
   #leaderWrap th:nth-child(4),
   #leaderWrap th:nth-child(5),
   #leaderWrap th:nth-child(6),
