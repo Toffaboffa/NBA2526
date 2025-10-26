@@ -1253,5 +1253,178 @@ els.refreshBtn.addEventListener('click', async ()=>{
   await renderAllPicks();          // highlight + poäng i tabellen
 });
 </script>
+
+<!-- ===== Historik / graf ===== -->
+<div class="card" style="margin-top:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <div>
+      <b>Utveckling över tid</b>
+      <div class="hint">Poäng & placering dag för dag</div>
+    </div>
+    <div class="small muted">
+      <label>Visa:</label>
+      <select id="historyMetric" style="background:#0b1220;border:1px solid var(--border);color:var(--fg);padding:6px 8px;border-radius:8px;">
+        <option value="total_points" selected>Poäng (högre är bättre)</option>
+        <option value="rank">Placering (lägre är bättre)</option>
+      </select>
+    </div>
+  </div>
+
+  <div style="margin-top:12px">
+    <canvas id="historyChart" height="200"></canvas>
+  </div>
+</div>
+
+<!-- Chart.js CDN (officiella) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+(async function(){
+  // 1. Hämta snapshot-data från Supabase ---------------------------------
+  //    Vi använder public anon key (= den du redan har i koden på sidan),
+  //    och same URL som du redan använder i din fetchStandings.
+  const SUPABASE_URL  = "https://wqrpfhidctlgqnuxqppp.supabase.co";
+  const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxcnBmaGlkY3RsZ3FudXhxcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDk5NTgsImV4cCI6MjA3NjcyNTk1OH0.rQiPQSI6YrIGR2GblEjpUi42jNLU0KVAP01vHOwyLgI";
+  const SEASON        = "2025";
+
+  async function fetchSnapshots(){
+    // vi tar allt för säsongen sorterat datum->tid->rank
+    const resp = await fetch(
+      SUPABASE_URL + "/rest/v1/snapshots?season=eq." + SEASON + "&select=snapshot_date,name,total_points,rank,east_points,west_points,inserted_at&order=snapshot_date.asc,inserted_at.asc",
+      {
+        headers:{
+          "apikey": SUPABASE_ANON,
+          "Authorization":"Bearer " + SUPABASE_ANON,
+          "Accept":"application/json"
+        }
+      }
+    );
+    if(!resp.ok){
+      console.error("snapshot fetch fail", resp.status);
+      return [];
+    }
+    return resp.json();
+  }
+
+  const rawRows = await fetchSnapshots();
+  // rawRows ser typ ut så här per rad:
+  // {
+  //   snapshot_date: "2025-10-26",
+  //   name: "Ben",
+  //   total_points: 28,
+  //   rank: 8,
+  //   ...
+  // }
+
+  // 2. Forma datat till:
+  //    - unika datum (x-axel)
+  //    - för varje spelare: värde per datum
+  function uniq(arr){ return [...new Set(arr)]; }
+
+  const allDates = uniq(rawRows.map(r => r.snapshot_date)).sort(); // ["2025-10-26", "2025-10-27", ...]
+  const allNames = uniq(rawRows.map(r => r.name)).sort();          // ["Ben", "Damme", ...]
+
+  // Bygg en lookup: dataByName[namn][datum] = { total_points, rank, ... }
+  const dataByName = {};
+  for (const row of rawRows){
+    if(!dataByName[row.name]) dataByName[row.name] = {};
+    dataByName[row.name][row.snapshot_date] = row;
+  }
+
+  // Hjälpfunktion som, givet en metric (t.ex. "total_points"),
+  // bygger Chart.js-datasets [{label:"Ben", data:[...values], ...}, ...]
+  function buildDatasets(metric){
+    return allNames.map(playerName => {
+      const seriesValues = allDates.map(d => {
+        const hit = dataByName[playerName][d];
+        if(!hit) return null; // ingen rad den dagen → null (Chart.js hoppar över)
+        return hit[metric];
+      });
+
+      return {
+        label: playerName,
+        data: seriesValues,
+        spanGaps: true,
+        tension: 0.3,
+        borderWidth: 2,
+        pointRadius: 3,
+      };
+    });
+  }
+
+  // 3. Skapa själva Chart.js-grafen ---------------------------------------
+  const ctx = document.getElementById('historyChart').getContext('2d');
+
+  // startmetric = total_points
+  let currentMetric = "total_points";
+  let chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: allDates,         // x-axel
+      datasets: buildDatasets(currentMetric)
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          labels: {
+            color: getComputedStyle(document.documentElement).getPropertyValue('--fg') || '#fff',
+            font: { size: 11 }
+          }
+        },
+        title: {
+          display: true,
+          text: "Poäng över tid",
+          color: getComputedStyle(document.documentElement).getPropertyValue('--fg') || '#fff',
+          font: { size: 14, weight: 'bold' }
+        },
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#aaa',
+            font: { size: 10 },
+          },
+          grid: {
+            color: getComputedStyle(document.documentElement).getPropertyValue('--border') || '#333'
+          }
+        },
+        y: {
+          reverse: false, // OBS! detta ändrar vi för rank nedan
+          ticks: {
+            color: getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#aaa',
+            font: { size: 10 },
+            precision: 0
+          },
+          grid: {
+            color: getComputedStyle(document.documentElement).getPropertyValue('--border') || '#333'
+          }
+        }
+      }
+    }
+  });
+
+  // 4. Dropdown: byt mellan Poäng och Placering ---------------------------
+  const metricSelect = document.getElementById('historyMetric');
+  metricSelect.addEventListener('change', () => {
+    currentMetric = metricSelect.value;
+
+    // uppdatera datasets
+    chart.data.datasets = buildDatasets(currentMetric);
+
+    // uppdatera titel + y-axel-reverse
+    if(currentMetric === "rank"){
+      chart.options.plugins.title.text = "Placering över tid (lägre = bättre)";
+      chart.options.scales.y.reverse = true;   // så 1 hamnar högst upp
+    }else{
+      chart.options.plugins.title.text = "Poäng över tid (högre = bättre)";
+      chart.options.scales.y.reverse = false;
+    }
+
+    chart.update();
+  });
+})();
+</script>
+
 </body>
 </html>
