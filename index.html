@@ -32,6 +32,42 @@
     .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .sep{height:1px;background:var(--border);margin:12px 0}
 
+/* ===== History chart layout ===== */
+.historyCard {
+  /* samma look som .card fast vi behöver kunna styra insidan */
+}
+
+.historyInner {
+  /* begränsa graf-ytan så den inte blir absurd hög/bred på desktop */
+  max-width: 100%;
+  /* låt inte canvas bli jättelång vertikalt */
+  height: 260px;
+  /* lite top-marginal mot rubriken */
+  margin-top: 12px;
+  position: relative; /* viktigt för Chart.js responsive sizing */
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #0c1322; /* lite mörkare panel-känsla, matchar resten */
+  padding: 8px;
+  box-sizing: border-box;
+  overflow-x: auto; /* om datum blir supermånga kan man scrolla horisontellt */
+}
+
+/* Canvas ska fylla .historyInner */
+#historyChart{
+  width:100% !important;
+  height:100% !important;
+  display:block;
+}
+
+/* Mobil: lite högre så det inte blir för platt */
+@media (max-width:640px){
+  .historyInner{
+    height:320px;
+  }
+}
+
+    
     /* --- Bas för tabeller --- */
     table{width:100%;border-collapse:collapse;table-layout:auto}
     th,td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:.85rem;white-space:nowrap}
@@ -1255,7 +1291,7 @@ els.refreshBtn.addEventListener('click', async ()=>{
 </script>
 
 <!-- ===== Historik / graf ===== -->
-<div class="card" style="margin-top:16px">
+<div class="card historyCard" style="margin-top:16px">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
     <div>
       <b>Utveckling över tid</b>
@@ -1270,8 +1306,9 @@ els.refreshBtn.addEventListener('click', async ()=>{
     </div>
   </div>
 
-  <div style="margin-top:12px">
-    <canvas id="historyChart" height="200"></canvas>
+  <!-- själva chart-rutan -->
+  <div class="historyInner">
+    <canvas id="historyChart"></canvas>
   </div>
 </div>
 
