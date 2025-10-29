@@ -1280,45 +1280,57 @@ els.refreshBtn.addEventListener('click', async ()=>{
   await renderAllPicks();          // highlight + poäng i tabellen
 });
 </script>
-<div class="wrap">
-<!-- ===== Historik / graf ===== -->
-<div class="card historyCard" style="margin-top:16px">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-    <div>
-      <b>Utveckling över tid</b>
-      <div class="hint">Poäng & placering dag för dag</div>
-    </div>
-    <div class="small muted">
-      <label>Visa:</label>
-      <select id="historyMetric" style="background:#0b1220;border:1px solid var(--border);color:var(--fg);padding:6px 8px;border-radius:8px;">
-        <option value="total_points" selected>Poäng (högre är bättre)</option>
-        <option value="rank">Placering (lägre är bättre)</option>
-      </select>
-    </div>
-  </div>
 
-  <!-- själva chart-rutan -->
-  <div class="historyInner">
-    <canvas id="historyChart"></canvas>
+<!-- ===== Historik / graf ===== -->
+<div class="wrap">
+  <div class="card historyCard" style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div>
+        <b>Utveckling över tid</b>
+        <div class="hint">Poäng & placering dag för dag</div>
+      </div>
+
+      <!-- kontroller för vad vi tittar på -->
+      <div class="small muted" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <div>
+          <label for="historyMetric">Visa:</label><br/>
+          <select id="historyMetric"
+                  style="background:#0b1220;border:1px solid var(--border);color:var(--fg);padding:6px 8px;border-radius:8px;min-width:170px;">
+            <option value="total_points" selected>Poäng (högre är bättre)</option>
+            <option value="rank">Placering (lägre är bättre)</option>
+          </select>
+        </div>
+        <div>
+          <label for="historyRange">Period:</label><br/>
+          <select id="historyRange"
+                  style="background:#0b1220;border:1px solid var(--border);color:var(--fg);padding:6px 8px;border-radius:8px;min-width:170px;">
+            <option value="7d">Senaste veckan</option>
+            <option value="30d">Senaste månaden</option>
+            <option value="all" selected>Totalt sedan start</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- själva chart-rutan -->
+    <div class="historyInner">
+      <canvas id="historyChart"></canvas>
+    </div>
   </div>
 </div>
-</div>
-<!-- Chart.js CDN (officiella) -->
+
+<!-- Chart.js CDN (officiell) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
 (async function(){
-  // 1. Hämta snapshot-data från Supabase ---------------------------------
-  //    Vi använder public anon key (= den du redan har i koden på sidan),
-  //    och same URL som du redan använder i din fetchStandings.
-  const SUPABASE_URL  = "https://wqrpfhidctlgqnuxqppp.supabase.co";
-  const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxcnBmaGlkY3RsZ3FudXhxcHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDk5NTgsImV4cCI6MjA3NjcyNTk1OH0.rQiPQSI6YrIGR2GblEjpUi42jNLU0KVAP01vHOwyLgI";
-  const SEASON        = "2025";
-
+  // === 1. Hämta snapshot-historik (alla dagar) ===
   async function fetchSnapshots(){
-    // vi tar allt för säsongen sorterat datum->tid->rank
     const resp = await fetch(
-      SUPABASE_URL + "/rest/v1/snapshots?season=eq." + SEASON + "&select=snapshot_date,name,total_points,rank,east_points,west_points,inserted_at&order=snapshot_date.asc,inserted_at.asc",
+      SUPABASE_URL + "/rest/v1/snapshots"
+      + "?season=eq." + SEASON
+      + "&select=snapshot_date,name,total_points,rank,east_points,west_points,inserted_at"
+      + "&order=snapshot_date.asc,inserted_at.asc",
       {
         headers:{
           "apikey": SUPABASE_ANON,
@@ -1335,7 +1347,7 @@ els.refreshBtn.addEventListener('click', async ()=>{
   }
 
   const rawRows = await fetchSnapshots();
-  // rawRows ser typ ut så här per rad:
+  // rad-exempel:
   // {
   //   snapshot_date: "2025-10-26",
   //   name: "Ben",
@@ -1344,28 +1356,56 @@ els.refreshBtn.addEventListener('click', async ()=>{
   //   ...
   // }
 
-  // 2. Forma datat till:
-  //    - unika datum (x-axel)
-  //    - för varje spelare: värde per datum
+  // === 2. Grundprepp: samla alla datum / alla namn / lookup ===
   function uniq(arr){ return [...new Set(arr)]; }
 
-  const allDates = uniq(rawRows.map(r => r.snapshot_date)).sort(); // ["2025-10-26", "2025-10-27", ...]
-  const allNames = uniq(rawRows.map(r => r.name)).sort();          // ["Ben", "Damme", ...]
+  // sorterade datumsträngar YYYY-MM-DD
+  const allDates = uniq(rawRows.map(r => r.snapshot_date)).sort();
+  // sorterade namn
+  const allNames = uniq(rawRows.map(r => r.name)).sort();
 
-  // Bygg en lookup: dataByName[namn][datum] = { total_points, rank, ... }
+  // dataByName[namn][datum] = row
   const dataByName = {};
-  for (const row of rawRows){
+  for(const row of rawRows){
     if(!dataByName[row.name]) dataByName[row.name] = {};
     dataByName[row.name][row.snapshot_date] = row;
   }
 
-  // Hjälpfunktion som, givet en metric (t.ex. "total_points"),
-  // bygger Chart.js-datasets [{label:"Ben", data:[...values], ...}, ...]
-  function buildDatasets(metric){
+  // Hjälp: parse "YYYY-MM-DD" till Date (lokal midnatt)
+  function parseDateStr(dStr){
+    const [y,m,d] = dStr.split("-").map(Number);
+    return new Date(y, m-1, d); // lokal midnatt
+  }
+
+  // Kort svensk datumetikett, ex "29 okt"
+  const svShortFmt = new Intl.DateTimeFormat('sv-SE', {
+    day: 'numeric',
+    month: 'short'
+  });
+  function prettyDateLabel(dStr){
+    return svShortFmt.format(parseDateStr(dStr)).replace('.', '');
+  }
+
+  // === 3. Range-filtrering ===
+  // Vi tar "7d", "30d" eller "all" och returnerar filtrerade datum
+  function filterDatesByRange(rangeKey){
+    if(rangeKey === 'all') return allDates.slice();
+
+    const daysBack = rangeKey === '7d' ? 7 : 30;
+    const cutoffMs = Date.now() - daysBack*24*60*60*1000;
+
+    return allDates.filter(dStr => {
+      const t = parseDateStr(dStr).getTime();
+      return t >= cutoffMs;
+    });
+  }
+
+  // === 4. Bygg datasets för den valda metricen och range ===
+  function buildDatasetsForRange(metric, dateList){
     return allNames.map(playerName => {
-      const seriesValues = allDates.map(d => {
+      const seriesValues = dateList.map(d => {
         const hit = dataByName[playerName][d];
-        if(!hit) return null; // ingen rad den dagen → null (Chart.js hoppar över)
+        if(!hit) return null; // saknar datapunkt den dagen → null = gap
         return hit[metric];
       });
 
@@ -1375,25 +1415,56 @@ els.refreshBtn.addEventListener('click', async ()=>{
         spanGaps: true,
         tension: 0.3,
         borderWidth: 2,
-        pointRadius: 3,
+        pointRadius: 3
       };
     });
   }
 
-  // 3. Skapa själva Chart.js-grafen ---------------------------------------
-  const ctx = document.getElementById('historyChart').getContext('2d');
+  // === 5. X-tick thinning ===
+  // I "all": vi visar bara t.ex. var 7:e datum + första och sista.
+  // I kortare range: visa alla.
+  function makeXTicksCallback(dateList, rangeKey){
+    return function(value, index){
+      if(rangeKey !== 'all'){
+        // kort range, visa alla
+        return prettyDateLabel(dateList[index]);
+      }
 
-  // startmetric = total_points
-  let currentMetric = "total_points";
+      // lång range
+      const lastIdx = dateList.length - 1;
+      if(index === 0 || index === lastIdx){
+        return prettyDateLabel(dateList[index]);
+      }
+      // visa ungefär var 7:e dag
+      if(index % 7 === 0){
+        return prettyDateLabel(dateList[index]);
+      }
+      // övriga dagar har fortfarande datapunkter,
+      // men ingen text under x-axeln
+      return '';
+    };
+  }
+
+  // === 6. Chart setup ===
+  const metricSelect = document.getElementById('historyMetric');
+  const rangeSelect  = document.getElementById('historyRange');
+  const ctx          = document.getElementById('historyChart').getContext('2d');
+
+  let currentMetric = metricSelect.value; // "total_points"
+  let currentRange  = rangeSelect.value;  // "all"
+
+  let activeDates   = filterDatesByRange(currentRange);
+
   let chart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: allDates,         // x-axel
-      datasets: buildDatasets(currentMetric)
+      // vi matar in ALLA datum för det valda intervallet
+      labels: activeDates,
+      datasets: buildDatasetsForRange(currentMetric, activeDates)
     },
     options: {
       responsive: true,
-      maintainAspectRatio: false, // viktigt: låt containerns höjd styra
+      maintainAspectRatio: false,
 
       plugins: {
         legend: {
@@ -1404,14 +1475,23 @@ els.refreshBtn.addEventListener('click', async ()=>{
         },
         title: {
           display: true,
-          text: "Poäng över tid",
+          text: currentMetric === "rank"
+            ? "Placering över tid (lägre = bättre)"
+            : "Poäng över tid (högre = bättre)",
           color: getComputedStyle(document.documentElement).getPropertyValue('--fg') || '#fff',
           font: { size: 12, weight: 'bold' }
         },
         tooltip: {
-          titleFont: { size: 11 },
-          bodyFont:  { size: 11 },
-          footerFont:{ size: 10 }
+          callbacks: {
+            title: (items) => {
+              // items[0].label är vårt råa datum "YYYY-MM-DD"
+              const raw = items[0].label;
+              return prettyDateLabel(raw) + " (" + raw + ")";
+            }
+          },
+          titleFont:  { size: 11 },
+          bodyFont:   { size: 11 },
+          footerFont: { size: 10 }
         }
       },
 
@@ -1420,16 +1500,18 @@ els.refreshBtn.addEventListener('click', async ()=>{
           ticks: {
             color: getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#aaa',
             font: { size: 9 },
+            callback: makeXTicksCallback(activeDates, currentRange)
           },
           grid: {
             color: getComputedStyle(document.documentElement).getPropertyValue('--border') || '#333'
           }
         },
         y: {
-          reverse: false, // ändras för rank nedan
+          reverse: (currentMetric === "rank"), // #1 ska ligga högst upp när vi visar placering
           ticks: {
             color: getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#aaa',
-            font: { size: 9 },
+            // större och tydligare Y-font:
+            font: { size: 12, weight: '600' },
             precision: 0
           },
           grid: {
@@ -1440,25 +1522,35 @@ els.refreshBtn.addEventListener('click', async ()=>{
     }
   });
 
-  // 4. Dropdown: byt mellan Poäng och Placering ---------------------------
-  const metricSelect = document.getElementById('historyMetric');
-  metricSelect.addEventListener('change', () => {
+  // === 7. Uppdatera grafen när metric eller range ändras ===
+  function updateChart(){
     currentMetric = metricSelect.value;
+    currentRange  = rangeSelect.value;
+    activeDates   = filterDatesByRange(currentRange);
 
-    // uppdatera datasets
-    chart.data.datasets = buildDatasets(currentMetric);
+    // uppdatera labels (alla dagar i valt spann)
+    chart.data.labels = activeDates;
 
-    // uppdatera titel + y-axel-reverse
-    if(currentMetric === "rank"){
-      chart.options.plugins.title.text = "Placering över tid (lägre = bättre)";
-      chart.options.scales.y.reverse = true;   // så 1 hamnar högst upp
-    }else{
-      chart.options.plugins.title.text = "Poäng över tid (högre = bättre)";
-      chart.options.scales.y.reverse = false;
-    }
+    // nya datasets
+    chart.data.datasets = buildDatasetsForRange(currentMetric, activeDates);
+
+    // titeltext
+    chart.options.plugins.title.text =
+      currentMetric === "rank"
+        ? "Placering över tid (lägre = bättre)"
+        : "Poäng över tid (högre = bättre)";
+
+    // vänd Y när vi visar placering
+    chart.options.scales.y.reverse = (currentMetric === "rank");
+
+    // x-tick callback (glesa ut bara i "all")
+    chart.options.scales.x.ticks.callback = makeXTicksCallback(activeDates, currentRange);
 
     chart.update();
-  });
+  }
+
+  metricSelect.addEventListener('change', updateChart);
+  rangeSelect.addEventListener('change', updateChart);
 })();
 </script>
 
